@@ -351,8 +351,8 @@
     async function loadGallery() {
       try {
         const [photoRes, videoRes] = await Promise.all([
-          fetch(API + "/api/gallery"),
-          fetch(API + "/api/videos")
+          fetch(API + "/gallery"),
+          fetch(API + "/videos")
         ]);
 
         const photoData = photoRes.ok ? await photoRes.json() : { photos: [] };
