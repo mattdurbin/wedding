@@ -2,657 +2,206 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <title>Kimberley & Matthew | Upload, Gallery & Guestbook</title>
-  <meta name="description" content="Share your wedding photos, videos, and messages for Kimberley and Matthew." />
-  <meta name="theme-color" content="#dff2ff" />
-  <style>
-    :root{
-      --sky-1:#d9f1ff;
-      --sky-2:#eef9ff;
-      --sky-3:#ffffff;
-      --blue:#2489cc;
-      --blue-deep:#225fa7;
-      --gold:#e9c96f;
-      --gold-soft:rgba(233,201,111,.35);
-      --card:rgba(255,255,255,.9);
-      --card-border:rgba(218,229,239,.95);
-      --text:#1f252b;
-      --muted:#65717b;
-      --success:#1b7b49;
-      --error:#9b2f2f;
-      --shadow:0 18px 40px rgba(39,75,110,.14);
-      --radius:24px;
-    }
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
 
-    *{ box-sizing:border-box; -webkit-tap-highlight-color: transparent; }
-    html, body { min-height:100%; }
+  <title>Kimberley & Matthew</title>
 
-    body{
-      margin:0;
-      color:var(--text);
-      font-family: "Trebuchet MS","Segoe UI",Arial,sans-serif;
-      background:
-        radial-gradient(circle at 8% 5%, rgba(255,232,172,.95) 0%, rgba(255,232,172,.42) 10%, rgba(255,232,172,0) 18%),
-        radial-gradient(circle at 88% 84%, rgba(233,205,127,.12) 0%, rgba(233,205,127,.06) 18%, rgba(233,205,127,0) 30%),
-        radial-gradient(circle at 18% 16%, rgba(255,255,255,.94) 0%, rgba(255,255,255,.7) 10%, rgba(255,255,255,0) 26%),
-        radial-gradient(circle at 80% 12%, rgba(255,255,255,.94) 0%, rgba(255,255,255,.72) 10%, rgba(255,255,255,0) 26%),
-        linear-gradient(180deg, var(--sky-1) 0%, var(--sky-2) 32%, var(--sky-3) 100%);
-      overflow-x:hidden;
-      position:relative;
-    }
-
-    body::before,
-    body::after{
-      content:"";
-      position:fixed;
-      width:1050px;
-      height:1050px;
-      border-radius:50%;
-      pointer-events:none;
-      z-index:0;
-      border:3px solid var(--gold-soft);
-    }
-
-    body::before{
-      top:-760px;
-      left:-250px;
-      transform:rotate(-9deg);
-      clip-path: inset(46% 5% 5% 5%);
-    }
-
-    body::after{
-      right:-420px;
-      bottom:-700px;
-      clip-path: inset(5% 5% 46% 5%);
-    }
-
-    .clouds,.flowers{
-      position:fixed;
-      inset:0;
-      pointer-events:none;
-      z-index:0;
-    }
-
-    .clouds{
-      background:
-        radial-gradient(circle at 10% 10%, rgba(255,255,255,.9) 0 4.5%, rgba(255,255,255,0) 9%),
-        radial-gradient(circle at 18% 8%, rgba(255,255,255,.88) 0 4.2%, rgba(255,255,255,0) 8.6%),
-        radial-gradient(circle at 84% 11%, rgba(255,255,255,.92) 0 4.8%, rgba(255,255,255,0) 9.5%),
-        radial-gradient(circle at 75% 16%, rgba(255,255,255,.8) 0 4%, rgba(255,255,255,0) 8%),
-        radial-gradient(circle at 12% 34%, rgba(255,255,255,.54) 0 4.2%, rgba(255,255,255,0) 9%),
-        radial-gradient(circle at 86% 28%, rgba(255,255,255,.52) 0 4.1%, rgba(255,255,255,0) 8.8%);
-      opacity:.94;
-    }
-
-    .flowers{
-      background:
-        radial-gradient(circle at 4% 100%, rgba(128,181,120,.46) 0 6%, rgba(128,181,120,0) 14%),
-        radial-gradient(circle at 16% 100%, rgba(92,158,97,.34) 0 7%, rgba(92,158,97,0) 16%),
-        radial-gradient(circle at 92% 100%, rgba(128,181,120,.42) 0 6%, rgba(128,181,120,0) 14%),
-        radial-gradient(circle at 80% 100%, rgba(92,158,97,.3) 0 7%, rgba(92,158,97,0) 16%);
-      opacity:.9;
-    }
-
-    .wrap{
-      width:min(760px, calc(100% - 20px));
-      margin:0 auto;
-      padding:18px 0 32px;
-      position:relative;
-      z-index:1;
-    }
-
-    .hero{
-      text-align:center;
-      padding:8px 12px 14px;
-    }
-
-    .eyebrow{
-      display:inline-block;
-      font-size:.82rem;
-      letter-spacing:.16em;
-      text-transform:uppercase;
-      font-weight:800;
-      color:#708290;
-      margin-bottom:12px;
-    }
-
-    .title{
-      margin:0;
-      font-family: Impact, Haettenschweiler, "Arial Black", sans-serif;
-      font-size:clamp(2.3rem, 11vw, 4.8rem);
-      line-height:.94;
-      text-transform:uppercase;
-      font-style:bold;
-      letter-spacing:1em;
-      color:var(--blue);
-      transform:skew(-8deg);
-      text-shadow:
-        -5px -5px 0 var(--blue-deep),
-         5px -5px 0 var(--blue-deep),
-        -5px  5px 0 var(--blue-deep),
-         5px  5px 0 var(--blue-deep),
-         0 8px 16px rgba(37,104,182,.10);
-      display:inline-block;
-      max-width:100%;
-    }
-
-    .amp{ display:block; font-size:clamp(1.6rem, 6vw, 2.4rem); line-height:1; margin:.12em 0 .08em; }
-    .date{ margin:16px 0 12px; font-family: Georgia, "Times New Roman", serif; font-size:clamp(1.2rem, 5vw, 2rem); color:#1f1f1f; }
-    .subtitle{
-      margin:0 auto;
-      max-width:630px;
-      font-family: Georgia, "Times New Roman", serif;
-      font-size:clamp(1rem, 4.5vw, 1.32rem);
-      line-height:1.5;
-      color:#202020;
-    }
-
-    .nav-cards{
-      display:grid;
-      gap:12px;
-      margin:18px 0;
-    }
-
-    .nav-card,.panel{
-      background:var(--card);
-      border:1px solid var(--card-border);
-      border-radius:var(--radius);
-      box-shadow:var(--shadow);
-      backdrop-filter: blur(10px);
-      -webkit-backdrop-filter: blur(10px);
-      overflow:hidden;
-    }
-
-    .nav-card{
-      padding:16px 18px;
-      text-decoration:none;
-      color:inherit;
-      display:block;
-    }
-
-    .nav-title{ font-size:1.05rem; font-weight:800; color:#214d85; margin-bottom:6px; }
-    .nav-copy{ color:var(--muted); line-height:1.45; }
-
-    .panel-inner{ padding:18px; }
-
-    .section-title{
-      margin:0 0 10px;
-      font-weight:800;
-      color:#214d85;
-      font-size:1rem;
-    }
-
-    .dropzone{
-      border:2px dashed rgba(220,190,104,.82);
-      border-radius:22px;
-      padding:22px 16px;
-      text-align:center;
-      background:linear-gradient(180deg, rgba(255,255,255,.96), rgba(246,251,255,.96));
-      transition:all .18s ease;
-      cursor:pointer;
-      box-shadow: inset 0 0 0 1px rgba(255,255,255,.55);
-    }
-
-    .dropzone.dragover{
-      border-color:#c59b31;
-      transform:translateY(-1px);
-      box-shadow:0 14px 26px rgba(197,155,49,.14);
-      background:linear-gradient(180deg, rgba(255,251,240,.98), rgba(248,253,255,.98));
-    }
-
-    .camera{ font-size:2rem; margin-bottom:10px; }
-    .dropzone-title{ font-weight:800; font-size:1.12rem; color:#214d85; margin-bottom:8px; }
-    .dropzone-copy{ color:var(--muted); line-height:1.5; margin-bottom:8px; }
-    .small{ color:var(--muted); font-size:.92rem; line-height:1.45; }
-
-    input[type="file"]{ display:none; }
-
-    .fields{
-      display:grid;
-      gap:14px;
-      margin-top:16px;
-    }
-
-    label{
-      display:block;
-      font-weight:800;
-      color:#2b3944;
-      margin-bottom:8px;
-      font-size:.98rem;
-    }
-
-    input[type="text"], textarea{
-      width:100%;
-      padding:14px 15px;
-      border-radius:16px;
-      border:1px solid #d9e3ec;
-      background:rgba(255,255,255,.96);
-      color:#1f2a33;
-      font:inherit;
-      box-shadow: inset 0 1px 0 rgba(255,255,255,.7);
-    }
-
-    textarea{ min-height:128px; resize:vertical; }
-
-    .previews{
-      margin-top:16px;
-      display:grid;
-      grid-template-columns:repeat(2, minmax(0,1fr));
-      gap:12px;
-    }
-
-    .preview{
-      background:rgba(255,255,255,.95);
-      border:1px solid rgba(218,229,239,.95);
-      border-radius:18px;
-      overflow:hidden;
-      box-shadow:0 8px 18px rgba(44,71,103,.08);
-    }
-
-    .preview img,.preview video{
-      width:100%;
-      aspect-ratio:1/1;
-      object-fit:cover;
-      display:block;
-      background:#eaf4fb;
-    }
-
-    .preview .icon{
-      width:100%;
-      aspect-ratio:1/1;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      font-size:2.2rem;
-      background:#eef7fd;
-    }
-
-    .preview-meta{ padding:10px 10px 12px; }
-    .preview-name{ font-size:.86rem; color:#425260; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-bottom:4px; }
-    .preview-size{ font-size:.78rem; color:#758391; }
-
-    .note{
-      margin-top:18px;
-      text-align:center;
-      color:#5d6b78;
-      font-size:.95rem;
-      line-height:1.45;
-    }
-
-    .actions{
-      margin-top:16px;
-      display:grid;
-      gap:12px;
-    }
-
-    .button{
-      appearance:none;
-      border:0;
-      border-radius:18px;
-      padding:16px 18px;
-      font:inherit;
-      font-weight:800;
-      color:white;
-      cursor:pointer;
-      background:linear-gradient(180deg, #2ca6e0, #1d7fc3);
-      box-shadow:0 12px 24px rgba(31,135,200,.28);
-      transition:transform .12s ease, box-shadow .18s ease, filter .18s ease;
-      text-decoration:none;
-      text-align:center;
-    }
-
-    .button:hover{
-      transform:translateY(-1px);
-      box-shadow:0 16px 30px rgba(31,135,200,.34);
-      filter:saturate(1.05);
-    }
-
-    .button:active{ transform:translateY(1px); }
-    .button[disabled]{ opacity:.68; cursor:not-allowed; transform:none; box-shadow:0 8px 18px rgba(31,135,200,.18); }
-
-    .selection{ text-align:center; color:#5d6b78; font-size:.95rem; }
-
-    .status{
-      display:none;
-      border-radius:16px;
-      padding:14px 15px;
-      line-height:1.5;
-      font-weight:700;
-      font-size:.98rem;
-      white-space:pre-line;
-    }
-
-    .status.success{ display:block; background:rgba(235,250,241,.96); border:1px solid rgba(186,228,202,1); color:var(--success); }
-    .status.error{ display:block; background:rgba(255,241,241,.96); border:1px solid rgba(239,207,207,1); color:var(--error); }
-
-    .footer{
-      text-align:center;
-      color:#586773;
-      font-size:.94rem;
-      line-height:1.55;
-      padding:14px 10px 0;
-    }
-
-    .footer strong{ color:#235088; }
-
-    @media (min-width: 640px){
-      .panel-inner{ padding:24px; }
-      .fields.two{ grid-template-columns:1fr 1fr; }
-      .previews{ grid-template-columns:repeat(3, minmax(0,1fr)); }
-      .actions{ grid-template-columns:1fr auto; align-items:center; }
-      .selection{ text-align:left; }
-      .button{ min-width:230px; }
-      .nav-cards{ grid-template-columns:1fr 1fr; }
-    }
-  </style>
+  <link rel="stylesheet" href="styles.css">
 </head>
+
 <body>
-  <div class="clouds" aria-hidden="true"></div>
-  <div class="flowers" aria-hidden="true"></div>
 
   <main class="wrap">
+
+    <!-- HERO -->
     <section class="hero">
-      <div class="eyebrow">Wedding Upload, Gallery & Guestbook</div>
-      <h1 class="title">
+      <h1 class="names">
         Kimberley Mason
         <span class="amp">&amp;</span>
         Matthew Alexander Durbin
       </h1>
+
       <div class="date">20th June 2026</div>
+
       <p class="subtitle">
-        Share your favourite photos, videos, and messages with us. You can also browse the gallery and read guest messages below.
+        Share your photos and messages with us 💛
       </p>
     </section>
 
-    <section class="nav-cards">
-      <a class="nav-card" href="gallery.html">
-        <div class="nav-title">View photo gallery</div>
-        <div class="nav-copy">See uploaded photos from the day in one place.</div>
-      </a>
-      <a class="nav-card" href="messages.html">
-        <div class="nav-title">Read guest messages</div>
-        <div class="nav-copy">Browse all the lovely notes, memories, and well wishes.</div>
-      </a>
-    </section>
+    <!-- NAV -->
+    <a href="gallery.html" class="nav-card">
+      <div class="nav-title">📷 View photo gallery</div>
+      <div class="nav-copy">See all uploaded photos</div>
+    </a>
 
+    <a href="messages.html" class="nav-card">
+      <div class="nav-title">💬 Read messages</div>
+      <div class="nav-copy">View messages from guests</div>
+    </a>
+
+    <!-- UPLOAD PANEL -->
     <section class="panel">
-      <div class="panel-inner">
-        <form id="uploadForm">
-          <div class="section-title">Photos & videos <span class="small">(optional)</span></div>
 
-          <input
-            id="mediaFiles"
-            name="media"
-            type="file"
-            accept="image/*,video/*,.heic,.heif,.mov,.mp4,.m4v,.avi,.wmv,.webm,.mkv,.mpeg,.mpg,.3gp,.mts,.m2ts"
-            multiple
-          />
+      <form id="uploadForm">
 
-          <div id="dropzone" class="dropzone" tabindex="0" role="button" aria-label="Choose files to upload">
-            <div class="camera">📷🎥</div>
-            <div class="dropzone-title">Tap here to choose photos or videos</div>
-            <div class="dropzone-copy">You can upload multiple items at once from your phone or computer.</div>
-            <div class="small">Optional · up to 10 files at a time · max 50MB each</div>
-          </div>
+        <!-- FILE INPUT -->
+        <input
+          id="mediaFiles"
+          name="media"
+          type="file"
+          accept="image/*,video/*"
+          multiple
+        />
 
-          <div class="fields two">
-            <div>
-              <label for="guestName">Your name <span class="small">(optional)</span></label>
-              <input id="guestName" name="guestName" type="text" maxlength="80" placeholder="For example: Sarah & Tom" />
-            </div>
-            <div>
-              <label for="contact">Email or phone <span class="small">(optional)</span></label>
-              <input id="contact" name="contact" type="text" maxlength="120" placeholder="Only if you want us to contact you" />
-            </div>
-          </div>
+        <div id="dropzone" class="dropzone">
+          📷 Tap to upload photos or videos
+        </div>
 
-          <div class="fields">
-            <div>
-              <label for="message">Message</label>
-              <textarea id="message" name="message" maxlength="1500" placeholder="Leave us a message, memory, or well wishes here"></textarea>
-            </div>
-          </div>
+        <!-- FORM FIELDS -->
+        <div class="fields">
+          <input id="guestName" name="guestName" type="text" placeholder="Your name (optional)" />
+          <input id="contact" name="contact" type="text" placeholder="Email or phone (optional)" />
+          <textarea id="message" name="message" placeholder="Leave us a message 💛"></textarea>
+        </div>
 
-          <div id="previews" class="previews" aria-live="polite"></div>
+        <!-- PREVIEWS -->
+        <div id="previews" class="previews"></div>
 
-          <div class="note">
-            You can send a message on its own, upload files on their own, or do both together.
-          </div>
+        <!-- ACTIONS -->
+        <div style="margin-top:16px">
+          <button id="submitBtn" class="button" type="submit">
+            Send
+          </button>
+          <div id="selection">No files selected</div>
+        </div>
 
-          <div class="actions">
-            <button id="submitBtn" class="button" type="submit">Send to us</button>
-            <div id="selection" class="selection">No files selected</div>
-          </div>
+        <!-- STATUS -->
+        <div id="status" class="status"></div>
 
-          <div id="status" class="status"></div>
-        </form>
-      </div>
+      </form>
+
     </section>
 
-    <p class="footer">
-      Thank you for being part of our day.<br />
-      <strong>Kim &amp; Matt</strong>
-    </p>
+    <!-- FOOTER -->
+    <div class="footer">
+      Thank you for being part of our day 💛
+    </div>
+
   </main>
 
+  <!-- SCRIPT -->
   <script>
-    const API_BASE = "https://wedding-photo-upload.matt-c43.workers.dev";
-    const MAX_FILES = 10;
-    const MAX_FILE_SIZE = 50 * 1024 * 1024;
-    const ACCEPTED_EXTENSIONS = [
-      "jpg","jpeg","png","gif","webp","bmp","svg","heic","heif",
-      "mp4","mov","m4v","avi","wmv","webm","mkv","mpeg","mpg","3gp","mts","m2ts","ogv"
-    ];
+    const API = "https://wedding-photo-upload.matt-c43.workers.dev";
 
     const input = document.getElementById("mediaFiles");
     const dropzone = document.getElementById("dropzone");
     const previews = document.getElementById("previews");
     const form = document.getElementById("uploadForm");
-    const statusBox = document.getElementById("status");
-    const submitBtn = document.getElementById("submitBtn");
+    const status = document.getElementById("status");
     const selection = document.getElementById("selection");
 
-    function setStatus(type, message){
-      statusBox.className = "status " + type;
-      statusBox.textContent = message;
+    function setStatus(type, msg) {
+      status.className = "status " + type;
+      status.textContent = msg;
     }
 
-    function clearStatus(){
-      statusBox.className = "status";
-      statusBox.textContent = "";
+    function clearStatus() {
+      status.className = "status";
+      status.textContent = "";
     }
 
-    function fileSize(bytes){
-      if (bytes < 1024 * 1024) return Math.round(bytes / 1024) + " KB";
-      return (bytes / (1024 * 1024)).toFixed(1) + " MB";
-    }
-
-    function ext(name){
-      const match = name.toLowerCase().match(/\.([a-z0-9]+)$/);
-      return match ? match[1] : "";
-    }
-
-    function validateFiles(fileList){
-      const files = Array.from(fileList || []);
-
-      if (files.length > MAX_FILES) return { valid:false, message:`Please select up to ${MAX_FILES} files at a time.` };
-
-      for (const file of files){
-        const extension = ext(file.name);
-        const imageLike = file.type.startsWith("image/");
-        const videoLike = file.type.startsWith("video/");
-        const extensionAllowed = ACCEPTED_EXTENSIONS.includes(extension);
-
-        if (!imageLike && !videoLike && !extensionAllowed){
-          return { valid:false, message:`“${file.name}” is not a supported photo or video file.` };
-        }
-
-        if (file.size > MAX_FILE_SIZE){
-          return { valid:false, message:`“${file.name}” is larger than 50MB.` };
-        }
-      }
-
-      return { valid:true, files };
-    }
-
-    function renderPreviews(fileList){
+    function previewFiles(files) {
       previews.innerHTML = "";
-      const files = Array.from(fileList || []);
 
-      if (!files.length){
+      if (!files.length) {
         selection.textContent = "No files selected";
         return;
       }
 
-      selection.textContent = `${files.length} file${files.length === 1 ? "" : "s"} selected`;
+      selection.textContent = files.length + " file(s) selected";
 
-      for (const file of files){
-        const card = document.createElement("div");
-        card.className = "preview";
+      Array.from(files).forEach(file => {
+        const div = document.createElement("div");
+        div.className = "preview";
 
-        let media;
-        if (file.type.startsWith("image/")){
-          media = document.createElement("img");
-          media.alt = file.name;
+        let el;
+
+        if (file.type.startsWith("image/")) {
+          el = document.createElement("img");
           const reader = new FileReader();
-          reader.onload = e => { media.src = e.target.result; };
+          reader.onload = e => el.src = e.target.result;
           reader.readAsDataURL(file);
-        } else if (file.type.startsWith("video/")){
-          media = document.createElement("video");
-          media.muted = true;
-          media.playsInline = true;
-          media.preload = "metadata";
-          media.controls = false;
-          media.src = URL.createObjectURL(file);
+        } else if (file.type.startsWith("video/")) {
+          el = document.createElement("video");
+          el.src = URL.createObjectURL(file);
+          el.muted = true;
         } else {
-          media = document.createElement("div");
-          media.className = "icon";
-          media.textContent = "🎞️";
+          el = document.createElement("div");
+          el.textContent = "🎞️";
         }
 
-        const meta = document.createElement("div");
-        meta.className = "preview-meta";
-
-        const name = document.createElement("div");
-        name.className = "preview-name";
-        name.textContent = file.name;
-
-        const size = document.createElement("div");
-        size.className = "preview-size";
-        size.textContent = fileSize(file.size);
-
-        meta.appendChild(name);
-        meta.appendChild(size);
-        card.appendChild(media);
-        card.appendChild(meta);
-        previews.appendChild(card);
-      }
-    }
-
-    function assignFiles(files){
-      const dt = new DataTransfer();
-      files.forEach(file => dt.items.add(file));
-      input.files = dt.files;
-      renderPreviews(input.files);
+        div.appendChild(el);
+        previews.appendChild(div);
+      });
     }
 
     input.addEventListener("change", () => {
-      clearStatus();
-      const result = validateFiles(input.files);
-      if (!result.valid){
-        setStatus("error", result.message);
-        input.value = "";
-        renderPreviews([]);
-        return;
-      }
-      renderPreviews(input.files);
+      previewFiles(input.files);
     });
 
     dropzone.addEventListener("click", () => input.click());
-    dropzone.addEventListener("keydown", e => {
-      if (e.key === "Enter" || e.key === " "){
-        e.preventDefault();
-        input.click();
-      }
-    });
 
-    ["dragenter","dragover"].forEach(evt => {
-      dropzone.addEventListener(evt, e => {
-        e.preventDefault();
-        dropzone.classList.add("dragover");
-      });
-    });
-
-    ["dragleave","drop"].forEach(evt => {
-      dropzone.addEventListener(evt, e => {
-        e.preventDefault();
-        dropzone.classList.remove("dragover");
-      });
+    dropzone.addEventListener("dragover", e => {
+      e.preventDefault();
     });
 
     dropzone.addEventListener("drop", e => {
-      clearStatus();
-      const files = Array.from(e.dataTransfer.files || []);
-      const result = validateFiles(files);
-      if (!result.valid){
-        setStatus("error", result.message);
-        return;
-      }
-      assignFiles(files);
+      e.preventDefault();
+      input.files = e.dataTransfer.files;
+      previewFiles(input.files);
     });
 
     form.addEventListener("submit", async e => {
       e.preventDefault();
       clearStatus();
 
-      const result = validateFiles(input.files);
-      if (!result.valid){
-        setStatus("error", result.message);
-        return;
-      }
-
+      const files = input.files;
       const message = document.getElementById("message").value.trim();
       const guestName = document.getElementById("guestName").value.trim();
       const contact = document.getElementById("contact").value.trim();
 
-      if (!result.files.length && !message && !guestName && !contact){
-        setStatus("error", "Please upload at least one file or leave a message.");
+      if (!files.length && !message && !guestName && !contact) {
+        setStatus("error", "Please upload something or leave a message");
         return;
       }
 
       const data = new FormData();
-      result.files.forEach(file => data.append("media", file));
+
+      Array.from(files).forEach(f => data.append("media", f));
       data.append("guestName", guestName);
       data.append("contact", contact);
       data.append("message", message);
 
-      submitBtn.disabled = true;
-      submitBtn.textContent = "Sending...";
-
-      try{
-        const response = await fetch(`${API_BASE}/api/upload`, {
+      try {
+        const res = await fetch(API + "/api/upload", {
           method: "POST",
           body: data
         });
 
-        const payload = await response.json().catch(() => ({}));
-
-        if (!response.ok){
-          throw new Error(payload.error || "Submission failed. Please try again.");
-        }
+        if (!res.ok) throw new Error("Upload failed");
 
         form.reset();
         previews.innerHTML = "";
         selection.textContent = "No files selected";
-        setStatus("success", payload.message || "Thank you — your message and files have been sent successfully.");
-      } catch (err){
-        setStatus("error", err.message || "Something went wrong while sending.");
-      } finally {
-        submitBtn.disabled = false;
-        submitBtn.textContent = "Send to us";
+
+        setStatus("success", "Thank you! 💛");
+
+      } catch (err) {
+        setStatus("error", err.message);
       }
     });
+
   </script>
+
 </body>
 </html>
