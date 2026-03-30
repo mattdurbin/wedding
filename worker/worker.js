@@ -38,6 +38,22 @@ export default {
       return await adminLogout(request, env);
     }
 
+    if (url.pathname === "/api/admin/list" && request.method === "GET") {
+      return await adminList(request, env);
+    }
+
+    if (url.pathname === "/api/admin/delete-submission" && request.method === "POST") {
+      return await adminDeleteSubmission(request, env);
+    }
+
+    if (url.pathname === "/api/admin/delete-media" && request.method === "POST") {
+      return await adminDeleteMedia(request, env);
+    }
+
+    if (url.pathname === "/api/admin/bulk-delete" && request.method === "POST") {
+      return await adminBulkDelete(request, env);
+    }
+
     if (url.pathname.startsWith("/media/") && request.method === "GET") {
       return await serveMedia(request, env, url.pathname.substring("/media/".length));
     }
@@ -134,38 +150,38 @@ async function handleUpload(request, env) {
 }
 
 async function listMessages(request, env) {
-  const submissions = await readAllSubmissions(env);
+  const submissions = await readAllSubmissionRecords(env);
 
   const messages = submissions
-    .filter(item => item.message || item.guestName || item.contact || (item.files && item.files.length))
-    .sort((a, b) => String(b.uploadedAt || "").localeCompare(String(a.uploadedAt || "")))
+    .filter(item => item.data.message || item.data.guestName || item.data.contact || (item.data.files && item.data.files.length))
+    .sort((a, b) => String(b.data.uploadedAt || "").localeCompare(String(a.data.uploadedAt || "")))
     .map(item => ({
-      uploadId: item.uploadId || "",
-      uploadedAt: item.uploadedAt || "",
-      guestName: item.guestName || "",
-      message: redactSensitiveText(item.message || "", item.contact || ""),
-      filesCount: Array.isArray(item.files) ? item.files.length : 0,
-      hasPhotos: Array.isArray(item.files) ? item.files.some(f => String(f.category || "").startsWith("photo")) : false,
-      hasVideos: Array.isArray(item.files) ? item.files.some(f => String(f.category || "").startsWith("video")) : false
+      uploadId: item.data.uploadId || "",
+      uploadedAt: item.data.uploadedAt || "",
+      guestName: item.data.guestName || "",
+      message: redactSensitiveText(item.data.message || "", item.data.contact || ""),
+      filesCount: Array.isArray(item.data.files) ? item.data.files.length : 0,
+      hasPhotos: Array.isArray(item.data.files) ? item.data.files.some(f => String(f.category || "").startsWith("photo")) : false,
+      hasVideos: Array.isArray(item.data.files) ? item.data.files.some(f => String(f.category || "").startsWith("video")) : false
     }));
 
   return json({ messages }, 200, request);
 }
 
 async function listGallery(request, env) {
-  const submissions = await readAllSubmissions(env);
+  const submissions = await readAllSubmissionRecords(env);
   const photos = [];
 
   for (const item of submissions) {
-    const files = Array.isArray(item.files) ? item.files : [];
+    const files = Array.isArray(item.data.files) ? item.data.files : [];
     for (const file of files) {
       const type = String(file.type || "");
       const category = String(file.category || "");
       if (type.startsWith("image/") || category === "photos") {
         photos.push({
-          uploadId: item.uploadId || "",
-          uploadedAt: item.uploadedAt || "",
-          guestName: item.guestName || "",
+          uploadId: item.data.uploadId || "",
+          uploadedAt: item.data.uploadedAt || "",
+          guestName: item.data.guestName || "",
           originalName: file.originalName || "",
           key: file.key,
           url: `${new URL(request.url).origin}/media/${encodeURIComponent(file.key)}`
@@ -179,19 +195,19 @@ async function listGallery(request, env) {
 }
 
 async function listVideos(request, env) {
-  const submissions = await readAllSubmissions(env);
+  const submissions = await readAllSubmissionRecords(env);
   const videos = [];
 
   for (const item of submissions) {
-    const files = Array.isArray(item.files) ? item.files : [];
+    const files = Array.isArray(item.data.files) ? item.data.files : [];
     for (const file of files) {
       const type = String(file.type || "");
       const category = String(file.category || "");
       if (type.startsWith("video/") || category === "videos") {
         videos.push({
-          uploadId: item.uploadId || "",
-          uploadedAt: item.uploadedAt || "",
-          guestName: item.guestName || "",
+          uploadId: item.data.uploadId || "",
+          uploadedAt: item.data.uploadedAt || "",
+          guestName: item.data.guestName || "",
           originalName: file.originalName || "",
           key: file.key,
           url: `${new URL(request.url).origin}/media/${encodeURIComponent(file.key)}`
@@ -205,17 +221,17 @@ async function listVideos(request, env) {
 }
 
 async function exportCSV(request, env) {
-  const submissions = await readAllSubmissions(env);
+  const submissions = await readAllSubmissionRecords(env);
   const rows = [["Upload ID","Date","Name","Contact","Message","Files Count"]];
 
   for (const item of submissions) {
     rows.push([
-      item.uploadId || "",
-      item.uploadedAt || "",
-      item.guestName || "",
-      item.contact || "",
-      item.message || "",
-      Array.isArray(item.files) ? item.files.length : 0
+      item.data.uploadId || "",
+      item.data.uploadedAt || "",
+      item.data.guestName || "",
+      item.data.contact || "",
+      item.data.message || "",
+      Array.isArray(item.data.files) ? item.data.files.length : 0
     ]);
   }
 
@@ -294,6 +310,120 @@ async function adminCheck(request, env) {
     return json({ ok: false }, 401, request);
   }
   return json({ ok: true }, 200, request);
+}
+
+async function adminList(request, env) {
+  if (!(await isAdminAuthenticated(request, env))) {
+    return json({ error: "Unauthorised" }, 401, request);
+  }
+
+  const submissions = await readAllSubmissionRecords(env);
+  const out = submissions
+    .sort((a, b) => String(b.data.uploadedAt || "").localeCompare(String(a.data.uploadedAt || "")))
+    .map(item => ({
+      metadataKey: item.metadataKey,
+      uploadId: item.data.uploadId || "",
+      uploadedAt: item.data.uploadedAt || "",
+      guestName: item.data.guestName || "",
+      contact: item.data.contact || "",
+      message: item.data.message || "",
+      files: Array.isArray(item.data.files) ? item.data.files : []
+    }));
+
+  return json({ submissions: out }, 200, request);
+}
+
+async function adminDeleteSubmission(request, env) {
+  if (!(await isAdminAuthenticated(request, env))) {
+    return json({ error: "Unauthorised" }, 401, request);
+  }
+
+  const body = await request.json().catch(() => ({}));
+  const uploadId = String(body.uploadId || "").trim();
+
+  if (!uploadId) {
+    return json({ error: "Missing uploadId" }, 400, request);
+  }
+
+  const record = await findSubmissionByUploadId(env, uploadId);
+  if (!record) {
+    return json({ error: "Submission not found" }, 404, request);
+  }
+
+  const files = Array.isArray(record.data.files) ? record.data.files : [];
+  for (const file of files) {
+    if (file.key) {
+      await env.WEDDING_UPLOADS.delete(file.key);
+    }
+  }
+
+  await env.WEDDING_UPLOADS.delete(record.metadataKey);
+
+  return json({ ok: true }, 200, request);
+}
+
+async function adminDeleteMedia(request, env) {
+  if (!(await isAdminAuthenticated(request, env))) {
+    return json({ error: "Unauthorised" }, 401, request);
+  }
+
+  const body = await request.json().catch(() => ({}));
+  const uploadId = String(body.uploadId || "").trim();
+  const key = String(body.key || "").trim();
+
+  if (!uploadId || !key) {
+    return json({ error: "Missing uploadId or key" }, 400, request);
+  }
+
+  const record = await findSubmissionByUploadId(env, uploadId);
+  if (!record) {
+    return json({ error: "Submission not found" }, 404, request);
+  }
+
+  const files = Array.isArray(record.data.files) ? record.data.files : [];
+  const remaining = files.filter(file => file.key !== key);
+
+  await env.WEDDING_UPLOADS.delete(key);
+
+  record.data.files = remaining;
+  record.data.hasFiles = remaining.length > 0;
+
+  await env.WEDDING_UPLOADS.put(
+    record.metadataKey,
+    JSON.stringify(record.data, null, 2),
+    { httpMetadata: { contentType: "application/json" } }
+  );
+
+  return json({ ok: true }, 200, request);
+}
+
+async function adminBulkDelete(request, env) {
+  if (!(await isAdminAuthenticated(request, env))) {
+    return json({ error: "Unauthorised" }, 401, request);
+  }
+
+  const body = await request.json().catch(() => ({}));
+  const uploadIds = Array.isArray(body.uploadIds) ? body.uploadIds.map(v => String(v || "").trim()).filter(Boolean) : [];
+
+  if (!uploadIds.length) {
+    return json({ error: "No uploadIds supplied" }, 400, request);
+  }
+
+  for (const uploadId of uploadIds) {
+    const record = await findSubmissionByUploadId(env, uploadId);
+    if (!record) continue;
+
+    const files = Array.isArray(record.data.files) ? record.data.files : [];
+    for (const file of files) {
+      if (file.key) {
+        await env.WEDDING_UPLOADS.delete(file.key);
+      }
+    }
+
+    await env.WEDDING_UPLOADS.delete(record.metadataKey);
+  }
+
+  return json({ ok: true, deleted: uploadIds.length }, 200, request);
 }
 
 async function isAdminAuthenticated(request, env) {
@@ -393,7 +523,7 @@ function toBase64Url(bytes) {
    HELPERS
 ========================= */
 
-async function readAllSubmissions(env) {
+async function readAllSubmissionRecords(env) {
   let cursor = undefined;
   const keys = [];
 
@@ -410,10 +540,18 @@ async function readAllSubmissions(env) {
     const object = await env.WEDDING_UPLOADS.get(key);
     if (!object) continue;
     try {
-      submissions.push(JSON.parse(await object.text()));
+      submissions.push({
+        metadataKey: key,
+        data: JSON.parse(await object.text())
+      });
     } catch (_) {}
   }
   return submissions;
+}
+
+async function findSubmissionByUploadId(env, uploadId) {
+  const submissions = await readAllSubmissionRecords(env);
+  return submissions.find(item => item.data.uploadId === uploadId) || null;
 }
 
 function redactSensitiveText(text, contact = "") {
@@ -505,6 +643,7 @@ function corsHeaders(request) {
     "Access-Control-Allow-Origin": origin,
     "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type",
+    "Access-Control-Allow-Credentials": "true",
     "Vary": "Origin"
   };
 }
