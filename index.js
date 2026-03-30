@@ -1,4 +1,4 @@
-const API = "https://wedding-photo-upload.matt-c43.workers.dev";
+const API = "/api";
 
 const input = document.getElementById("mediaFiles");
 const dropzone = document.getElementById("dropzone");
