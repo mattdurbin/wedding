@@ -10,20 +10,24 @@ export default {
       return await handleUpload(request, env);
     }
 
-    if (url.pathname === "/api/messages") {
+    if (url.pathname === "/api/messages" && request.method === "GET") {
       return await listMessages(request, env);
     }
 
-    if (url.pathname === "/api/gallery") {
+    if (url.pathname === "/api/gallery" && request.method === "GET") {
       return await listGallery(request, env);
     }
 
-    if (url.pathname === "/api/export") {
+    if (url.pathname === "/api/videos" && request.method === "GET") {
+      return await listVideos(request, env);
+    }
+
+    if (url.pathname === "/api/export" && request.method === "GET") {
       return await exportCSV(request, env);
     }
 
-    if (url.pathname.startsWith("/media/")) {
-      return await serveMedia(request, env, url.pathname.replace("/media/", ""));
+    if (url.pathname.startsWith("/media/") && request.method === "GET") {
+      return await serveMedia(request, env, url.pathname.substring("/media/".length));
     }
 
     return new Response("Not found", { status: 404 });
@@ -31,205 +35,329 @@ export default {
 };
 
 const MAX_FILE_SIZE = 100 * 1024 * 1024;
+const ALLOWED_EXTENSIONS = [
+  "jpg","jpeg","png","gif","webp","bmp","svg","heic","heif",
+  "mp4","mov","m4v","avi","wmv","webm","mkv","mpeg","mpg","3gp","mts","m2ts","ogv"
+];
 
 async function handleUpload(request, env) {
   const formData = await request.formData();
 
-  const files = formData.getAll("media").filter(f => f instanceof File);
-  const guestName = sanitize(formData.get("guestName"));
-  const contact = sanitize(formData.get("contact"));
-  const message = sanitize(formData.get("message"), 1500);
+  const uploads = formData.getAll("media").filter(item => item instanceof File && item.name);
+  const guestName = sanitizeText(formData.get("guestName"));
+  const contact = sanitizeText(formData.get("contact"));
+  const message = sanitizeText(formData.get("message"), 1500);
 
-  if (!files.length && !guestName && !contact && !message) {
-    return json({ error: "Please upload or leave a message." }, 400, request);
+  if (!uploads.length && !guestName && !contact && !message) {
+    return json({ error: "Please upload at least one file or leave a message." }, 400, request);
   }
 
   const uploadId = crypto.randomUUID();
-  const uploadedAt = new Date().toISOString();
+  const timestamp = new Date().toISOString();
+  const saved = [];
 
-  const savedFiles = [];
-
-  for (const file of files) {
+  for (const file of uploads) {
     if (file.size > MAX_FILE_SIZE) {
-      return json({ error: `${file.name} exceeds 100MB` }, 400, request);
+      return json({ error: `File too large: ${file.name}. Maximum size is 100MB.` }, 400, request);
     }
 
-    const ext = getExt(file.name);
-    const type = file.type || "application/octet-stream";
-    const category = type.startsWith("video/") ? "videos" : "photos";
+    const extension = getExtension(file.name);
+    const mimeType = file.type || mimeFromExtension(extension);
+    const allowedByMime = mimeType.startsWith("image/") || mimeType.startsWith("video/");
+    const allowedByExtension = ALLOWED_EXTENSIONS.includes(extension);
 
-    const key = `wedding-uploads/${datePath()}/${uploadId}/${category}/${slug(file.name)}-${crypto.randomUUID()}.${ext}`;
+    if (!allowedByMime && !allowedByExtension) {
+      return json({ error: `Unsupported file type: ${file.name}` }, 400, request);
+    }
+
+    const safeBaseName = slugify(stripExtension(file.name)) || "file";
+    const category = mimeType.startsWith("video/") ? "videos" : "photos";
+    const key = `wedding-uploads/${datePath()}/${uploadId}/${category}/${safeBaseName}-${crypto.randomUUID()}.${extension || "bin"}`;
 
     await env.WEDDING_UPLOADS.put(key, await file.arrayBuffer(), {
-      httpMetadata: { contentType: type }
+      httpMetadata: { contentType: mimeType },
+      customMetadata: {
+        originalName: file.name,
+        guestName,
+        contact,
+        message,
+        uploadedAt: timestamp,
+        uploadId,
+        category
+      }
     });
 
-    savedFiles.push({
+    saved.push({
       key,
       originalName: file.name,
-      type,
+      size: file.size,
+      type: mimeType,
       category
     });
   }
 
-  const submission = {
+  const metadataKey = `wedding-uploads/${datePath()}/${uploadId}/submission.json`;
+  const metadata = {
     uploadId,
-    uploadedAt,
+    uploadedAt: timestamp,
     guestName,
     contact,
     message,
-    files: savedFiles
+    files: saved,
+    hasFiles: saved.length > 0,
+    userAgent: request.headers.get("user-agent") || ""
   };
 
-  await env.WEDDING_UPLOADS.put(
-    `wedding-uploads/${datePath()}/${uploadId}/submission.json`,
-    JSON.stringify(submission),
-    { httpMetadata: { contentType: "application/json" } }
-  );
+  await env.WEDDING_UPLOADS.put(metadataKey, JSON.stringify(metadata, null, 2), {
+    httpMetadata: { contentType: "application/json" }
+  });
 
-  return json({ ok: true }, 200, request);
+  const messageOnly = saved.length === 0;
+  return json({
+    ok: true,
+    message: messageOnly
+      ? "Thank you — your message has been saved successfully."
+      : `Thank you — your message and ${saved.length} file${saved.length === 1 ? "" : "s"} have been saved successfully.`
+  }, 200, request);
 }
 
 async function listMessages(request, env) {
-  const submissions = await getAllSubmissions(env);
+  const submissions = await readAllSubmissions(env);
 
-  const messages = submissions.map(s => ({
-    guestName: s.guestName,
-    uploadedAt: s.uploadedAt,
-    message: redact(s.message, s.contact),
-    filesCount: s.files?.length || 0,
-    hasPhotos: s.files?.some(f => f.category === "photos"),
-    hasVideos: s.files?.some(f => f.category === "videos")
-  }));
+  const messages = submissions
+    .filter(item => item.message || item.guestName || item.contact || (item.files && item.files.length))
+    .sort((a, b) => String(b.uploadedAt || "").localeCompare(String(a.uploadedAt || "")))
+    .map(item => ({
+      uploadId: item.uploadId || "",
+      uploadedAt: item.uploadedAt || "",
+      guestName: item.guestName || "",
+      message: redactSensitiveText(item.message || "", item.contact || ""),
+      filesCount: Array.isArray(item.files) ? item.files.length : 0,
+      hasPhotos: Array.isArray(item.files) ? item.files.some(f => String(f.category || "").startsWith("photo")) : false,
+      hasVideos: Array.isArray(item.files) ? item.files.some(f => String(f.category || "").startsWith("video")) : false
+    }));
 
   return json({ messages }, 200, request);
 }
 
 async function listGallery(request, env) {
-  const submissions = await getAllSubmissions(env);
-
+  const submissions = await readAllSubmissions(env);
   const photos = [];
 
-  for (const s of submissions) {
-    for (const f of (s.files || [])) {
-      if (f.category === "photos") {
+  for (const item of submissions) {
+    const files = Array.isArray(item.files) ? item.files : [];
+    for (const file of files) {
+      const type = String(file.type || "");
+      const category = String(file.category || "");
+      if (type.startsWith("image/") || category === "photos") {
         photos.push({
-          url: `${new URL(request.url).origin}/media/${encodeURIComponent(f.key)}`,
-          uploadedAt: s.uploadedAt,
-          guestName: s.guestName,
-          originalName: f.originalName
+          uploadId: item.uploadId || "",
+          uploadedAt: item.uploadedAt || "",
+          guestName: item.guestName || "",
+          originalName: file.originalName || "",
+          key: file.key,
+          url: `${new URL(request.url).origin}/media/${encodeURIComponent(file.key)}`
         });
       }
     }
   }
 
+  photos.sort((a, b) => String(b.uploadedAt || "").localeCompare(String(a.uploadedAt || "")));
   return json({ photos }, 200, request);
 }
 
-async function serveMedia(request, env, key) {
-  const obj = await env.WEDDING_UPLOADS.get(decodeURIComponent(key));
-  if (!obj) return new Response("Not found", { status: 404 });
+async function listVideos(request, env) {
+  const submissions = await readAllSubmissions(env);
+  const videos = [];
+
+  for (const item of submissions) {
+    const files = Array.isArray(item.files) ? item.files : [];
+    for (const file of files) {
+      const type = String(file.type || "");
+      const category = String(file.category || "");
+      if (type.startsWith("video/") || category === "videos") {
+        videos.push({
+          uploadId: item.uploadId || "",
+          uploadedAt: item.uploadedAt || "",
+          guestName: item.guestName || "",
+          originalName: file.originalName || "",
+          key: file.key,
+          url: `${new URL(request.url).origin}/media/${encodeURIComponent(file.key)}`
+        });
+      }
+    }
+  }
+
+  videos.sort((a, b) => String(b.uploadedAt || "").localeCompare(String(a.uploadedAt || "")));
+  return json({ videos }, 200, request);
+}
+
+async function serveMedia(request, env, encodedKey) {
+  const key = decodeURIComponent(encodedKey);
+  const object = await env.WEDDING_UPLOADS.get(key);
+
+  if (!object) {
+    return new Response("Not found", { status: 404 });
+  }
 
   const headers = new Headers();
-  obj.writeHttpMetadata(headers);
+  object.writeHttpMetadata(headers);
   headers.set("Cache-Control", "public, max-age=3600");
+  headers.set("Access-Control-Allow-Origin", request.headers.get("Origin") || "*");
+  headers.set("Vary", "Origin");
 
-  return new Response(obj.body, { headers });
+  return new Response(object.body, { headers });
 }
 
 async function exportCSV(request, env) {
-  const submissions = await getAllSubmissions(env);
+  const submissions = await readAllSubmissions(env);
+  const rows = [["Upload ID","Date","Name","Contact","Message","Files Count"]];
 
-  const rows = [["Upload ID","Date","Name","Contact","Message","Files"]];
-
-  for (const s of submissions) {
+  for (const item of submissions) {
     rows.push([
-      s.uploadId,
-      s.uploadedAt,
-      s.guestName,
-      s.contact,
-      s.message,
-      s.files?.length || 0
+      item.uploadId || "",
+      item.uploadedAt || "",
+      item.guestName || "",
+      item.contact || "",
+      item.message || "",
+      Array.isArray(item.files) ? item.files.length : 0
     ]);
   }
 
-  const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(",")).join("\n");
+  const csv = rows.map(row =>
+    row.map(value => `"${String(value).replace(/"/g, '""')}"`).join(",")
+  ).join("\n");
 
   return new Response(csv, {
     headers: {
-      "Content-Type": "text/csv",
-      "Content-Disposition": "attachment; filename=messages.csv"
+      "Content-Type": "text/csv; charset=utf-8",
+      "Content-Disposition": 'attachment; filename="messages.csv"',
+      ...corsHeaders(request)
     }
   });
 }
 
-async function getAllSubmissions(env) {
-  let cursor;
+async function readAllSubmissions(env) {
+  let cursor = undefined;
   const keys = [];
 
   do {
-    const res = await env.WEDDING_UPLOADS.list({ prefix: "wedding-uploads/", cursor });
-    res.objects.forEach(o => {
-      if (o.key.endsWith("submission.json")) keys.push(o.key);
-    });
-    cursor = res.truncated ? res.cursor : null;
+    const page = await env.WEDDING_UPLOADS.list({ prefix: "wedding-uploads/", cursor });
+    for (const obj of page.objects) {
+      if (obj.key.endsWith("submission.json")) keys.push(obj.key);
+    }
+    cursor = page.truncated ? page.cursor : undefined;
   } while (cursor);
 
-  const results = [];
-
+  const submissions = [];
   for (const key of keys) {
-    const obj = await env.WEDDING_UPLOADS.get(key);
-    if (obj) {
-      results.push(JSON.parse(await obj.text()));
+    const object = await env.WEDDING_UPLOADS.get(key);
+    if (!object) continue;
+    try {
+      submissions.push(JSON.parse(await object.text()));
+    } catch (_) {}
+  }
+  return submissions;
+}
+
+function redactSensitiveText(text, contact = "") {
+  let redacted = String(text || "");
+
+  redacted = redacted.replace(
+    /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi,
+    "[redacted email]"
+  );
+
+  redacted = redacted.replace(
+    /(?<!\w)(?:\+?\d[\d\s().-]{7,}\d)(?!\w)/g,
+    (match) => {
+      const digits = match.replace(/\D/g, "");
+      return digits.length >= 9 ? "[redacted phone]" : match;
     }
+  );
+
+  const contactValue = String(contact || "").trim();
+  if (contactValue) {
+    const escaped = contactValue.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    redacted = redacted.replace(new RegExp(escaped, "gi"), "[redacted contact]");
   }
 
-  return results;
+  return redacted;
 }
 
-function redact(text = "", contact = "") {
-  let t = text || "";
-
-  t = t.replace(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi, "[redacted email]");
-  t = t.replace(/\+?\d[\d\s().-]{7,}\d/g, "[redacted phone]");
-
-  if (contact) {
-    const safe = contact.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    t = t.replace(new RegExp(safe, "gi"), "[redacted contact]");
-  }
-
-  return t;
+function sanitizeText(value, maxLength = 500) {
+  return String(value || "").trim().replace(/\s+/g, " ").slice(0, maxLength);
 }
 
-function sanitize(v, max=500) {
-  return String(v || "").trim().slice(0, max);
+function stripExtension(filename) {
+  return filename.replace(/\.[^.]+$/, "");
 }
 
-function slug(str) {
-  return str.toLowerCase().replace(/[^a-z0-9]/g, "-");
+function getExtension(filename) {
+  const match = String(filename || "").toLowerCase().match(/\.([a-z0-9]+)$/);
+  return match ? match[1] : "";
 }
 
-function getExt(name) {
-  return name.split(".").pop().toLowerCase();
+function slugify(value) {
+  return String(value || "")
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80);
 }
 
 function datePath() {
   const d = new Date();
-  return `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}`;
+  const yyyy = d.getUTCFullYear();
+  const mm = String(d.getUTCMonth() + 1).padStart(2, "0");
+  const dd = String(d.getUTCDate()).padStart(2, "0");
+  return `${yyyy}/${mm}/${dd}`;
+}
+
+function mimeFromExtension(ext) {
+  switch (ext) {
+    case "jpg":
+    case "jpeg": return "image/jpeg";
+    case "png": return "image/png";
+    case "gif": return "image/gif";
+    case "webp": return "image/webp";
+    case "bmp": return "image/bmp";
+    case "svg": return "image/svg+xml";
+    case "heic": return "image/heic";
+    case "heif": return "image/heif";
+    case "mp4": return "video/mp4";
+    case "mov": return "video/quicktime";
+    case "m4v": return "video/x-m4v";
+    case "avi": return "video/x-msvideo";
+    case "wmv": return "video/x-ms-wmv";
+    case "webm": return "video/webm";
+    case "mkv": return "video/x-matroska";
+    case "mpeg":
+    case "mpg": return "video/mpeg";
+    case "3gp": return "video/3gpp";
+    case "mts":
+    case "m2ts": return "video/mp2t";
+    case "ogv": return "video/ogg";
+    default: return "application/octet-stream";
+  }
 }
 
 function corsHeaders(request) {
+  const origin = request.headers.get("Origin") || "*";
   return {
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "GET, POST, OPTIONS"
+    "Access-Control-Allow-Origin": origin,
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type",
+    "Vary": "Origin"
   };
 }
 
-function json(data, status, request) {
+function json(data, status = 200, request = new Request("https://example.com")) {
   return new Response(JSON.stringify(data), {
     status,
     headers: {
-      "content-type": "application/json",
+      "content-type": "application/json; charset=utf-8",
       ...corsHeaders(request)
     }
   });
