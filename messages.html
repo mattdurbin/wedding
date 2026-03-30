@@ -6,18 +6,12 @@
   <title>Messages | Kimberley & Matthew</title>
   <link rel="stylesheet" href="styles.css">
 </head>
-
 <body>
+
   <main class="wrap">
-
     <section class="hero">
-      <h1 class="names">
-        Guest Messages
-      </h1>
-
-      <p class="subtitle">
-        Kind words, memories, and messages from our guests 💛
-      </p>
+      <h1 class="names">Guest Messages</h1>
+      <p class="subtitle">Kind words, memories, and messages from our guests 💛</p>
     </section>
 
     <a href="index.html" class="nav-card">
@@ -36,7 +30,6 @@
     <div class="footer">
       Thank you for being part of our day 💛
     </div>
-
   </main>
 
   <script>
@@ -79,14 +72,13 @@
           date.className = "message-date";
           date.textContent = formatDate(item.uploadedAt);
 
-          const text = document.createElement("div");
-          text.className = "message-text";
-          text.textContent = item.message || "";
-
           card.appendChild(name);
           card.appendChild(date);
 
           if (item.message) {
+            const text = document.createElement("div");
+            text.className = "message-text";
+            text.textContent = item.message;
             card.appendChild(text);
           }
 
@@ -95,7 +87,7 @@
             files.className = "message-date";
             files.style.marginTop = "10px";
 
-            let tags = [];
+            const tags = [];
             if (item.hasPhotos) tags.push("Photos included");
             if (item.hasVideos) tags.push("Videos included");
             if (!tags.length) tags.push(item.filesCount + " file(s) attached");
