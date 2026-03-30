@@ -1,0 +1,302 @@
+/* =========================
+   RESET / BASE
+========================= */
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: "Segoe UI", Arial, sans-serif;
+  color: #243746;
+  background: linear-gradient(180deg, #dff2ff 0%, #f7fcff 40%, #ffffff 100%);
+}
+
+/* =========================
+   LAYOUT
+========================= */
+
+.wrap {
+  max-width: 900px;
+  margin: auto;
+  padding: 20px 12px 40px;
+}
+
+/* =========================
+   HERO / TITLE
+========================= */
+
+.hero {
+  text-align: center;
+  padding: 24px 10px 16px;
+}
+
+.names {
+  margin: 0;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(2rem, 8vw, 3.2rem);
+  line-height: 1.1;
+  font-weight: 600;
+  color: #243746;
+}
+
+.amp {
+  display: block;
+  font-size: 0.9em;
+  margin: 6px 0;
+  color: #c8a64c;
+}
+
+.date {
+  margin-top: 12px;
+  font-size: clamp(1.05rem, 4vw, 1.4rem);
+  color: #3f5c6b;
+  font-family: Georgia, "Times New Roman", serif;
+}
+
+.subtitle {
+  margin: 14px auto 0;
+  max-width: 600px;
+  font-size: 1rem;
+  color: #5e6d78;
+  line-height: 1.5;
+}
+
+/* =========================
+   CARDS / PANELS
+========================= */
+
+.panel {
+  background: #ffffff;
+  border: 1px solid #e1e8ef;
+  border-radius: 18px;
+  padding: 18px;
+  margin-top: 18px;
+  box-shadow: 0 10px 24px rgba(40, 70, 100, 0.08);
+}
+
+/* =========================
+   NAV CARDS
+========================= */
+
+.nav-card {
+  display: block;
+  padding: 16px;
+  border-radius: 16px;
+  background: #ffffff;
+  border: 1px solid #e1e8ef;
+  margin-bottom: 12px;
+  text-decoration: none;
+  color: inherit;
+  box-shadow: 0 6px 16px rgba(40, 70, 100, 0.06);
+}
+
+.nav-title {
+  font-weight: 700;
+  color: #1d4e89;
+  margin-bottom: 6px;
+}
+
+.nav-copy {
+  font-size: 0.95rem;
+  color: #5f6f7a;
+}
+
+/* =========================
+   BUTTON
+========================= */
+
+.button {
+  display: inline-block;
+  background: linear-gradient(180deg, #2ca6e0, #1d7fc3);
+  color: white;
+  padding: 14px 18px;
+  border-radius: 14px;
+  border: none;
+  font-weight: 700;
+  cursor: pointer;
+  text-align: center;
+}
+
+.button:disabled {
+  opacity: 0.6;
+}
+
+/* =========================
+   FORM
+========================= */
+
+.fields {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+input[type="text"],
+textarea {
+  width: 100%;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid #dbe3ea;
+  font-size: 1rem;
+}
+
+textarea {
+  min-height: 120px;
+  resize: vertical;
+}
+
+/* =========================
+   DROPZONE
+========================= */
+
+.dropzone {
+  border: 2px dashed #e3c770;
+  border-radius: 16px;
+  padding: 18px;
+  text-align: center;
+  cursor: pointer;
+  background: #ffffff;
+}
+
+.dropzone:hover {
+  background: #f9fcff;
+}
+
+/* =========================
+   PREVIEWS
+========================= */
+
+.previews {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.preview {
+  border: 1px solid #e1e8ef;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #fff;
+}
+
+.preview img,
+.preview video {
+  width: 100%;
+  aspect-ratio: 1/1;
+  object-fit: cover;
+}
+
+/* =========================
+   GALLERY
+========================= */
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.card {
+  background: #ffffff;
+  border-radius: 14px;
+  border: 1px solid #e1e8ef;
+  overflow: hidden;
+}
+
+.card img {
+  width: 100%;
+  aspect-ratio: 1/1;
+  object-fit: cover;
+}
+
+.meta {
+  padding: 10px;
+  font-size: 0.9rem;
+  color: #5e6d78;
+}
+
+/* =========================
+   MESSAGES
+========================= */
+
+.message-card {
+  background: #ffffff;
+  border-radius: 16px;
+  border: 1px solid #e1e8ef;
+  padding: 14px;
+  margin-top: 12px;
+}
+
+.message-name {
+  font-weight: 700;
+  color: #1d4e89;
+}
+
+.message-date {
+  font-size: 0.85rem;
+  color: #7a8a95;
+  margin-bottom: 6px;
+}
+
+.message-text {
+  white-space: pre-wrap;
+  line-height: 1.5;
+}
+
+/* =========================
+   STATUS MESSAGES
+========================= */
+
+.status {
+  margin-top: 12px;
+  padding: 12px;
+  border-radius: 12px;
+  display: none;
+}
+
+.status.success {
+  display: block;
+  background: #e9f9f0;
+  color: #1b7b49;
+}
+
+.status.error {
+  display: block;
+  background: #fff2f2;
+  color: #9b2f2f;
+}
+
+/* =========================
+   FOOTER
+========================= */
+
+.footer {
+  text-align: center;
+  margin-top: 24px;
+  color: #6b7a86;
+  font-size: 0.9rem;
+}
+
+/* =========================
+   RESPONSIVE
+========================= */
+
+@media (min-width: 700px) {
+  .grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .previews {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (min-width: 1000px) {
+  .grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
