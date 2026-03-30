@@ -144,7 +144,7 @@ form.addEventListener("submit", async (e) => {
   openUploadModal();
 
   try {
-    const result = await uploadWithProgress(API + "/api/upload", data, (percent) => {
+    const result = await uploadWithProgress(API + "/upload", data, (percent) => {
       progressBar.style.width = percent + "%";
       progressText.textContent = percent + "%";
 
