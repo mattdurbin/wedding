@@ -3,17 +3,13 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-
   <title>Kimberley & Matthew</title>
-
   <link rel="stylesheet" href="styles.css">
 </head>
-
 <body>
 
   <main class="wrap">
 
-    <!-- HERO -->
     <section class="hero">
       <h1 class="names">
         Kimberley Mason
@@ -24,27 +20,27 @@
       <div class="date">20th June 2026</div>
 
       <p class="subtitle">
-        Share your photos and messages with us 💛
+        Share your photos, videos and messages with us 💛
       </p>
     </section>
 
-    <!-- NAV -->
     <a href="gallery.html" class="nav-card">
-      <div class="nav-title">📷 View photo gallery</div>
-      <div class="nav-copy">See all uploaded photos</div>
+      <div class="nav-title">📷 View gallery</div>
+      <div class="nav-copy">See photos and videos shared by guests</div>
     </a>
 
     <a href="messages.html" class="nav-card">
       <div class="nav-title">💬 Read messages</div>
-      <div class="nav-copy">View messages from guests</div>
+      <div class="nav-copy">View kind words and memories left for us</div>
     </a>
 
-    <!-- UPLOAD PANEL -->
     <section class="panel">
+      <h2 class="panel-heading">Upload your photos, videos or message</h2>
+      <p class="panel-copy">
+        You can upload media, leave a message, or do both.
+      </p>
 
       <form id="uploadForm">
-
-        <!-- FILE INPUT -->
         <input
           id="mediaFiles"
           name="media"
@@ -53,43 +49,75 @@
           multiple
         />
 
-        <div id="dropzone" class="dropzone">
-          📷 Tap to upload photos or videos
+        <div id="dropzone" class="dropzone" role="button" tabindex="0">
+          <div class="dropzone-title">Tap to choose photos or videos</div>
+          <div class="dropzone-copy">
+            Upload from your phone or computer
+          </div>
         </div>
 
-        <!-- FORM FIELDS -->
         <div class="fields">
-          <input id="guestName" name="guestName" type="text" placeholder="Your name (optional)" />
-          <input id="contact" name="contact" type="text" placeholder="Email or phone (optional)" />
-          <textarea id="message" name="message" placeholder="Leave us a message 💛"></textarea>
+          <input
+            id="guestName"
+            name="guestName"
+            type="text"
+            placeholder="Your name (optional)"
+          />
+
+          <input
+            id="contact"
+            name="contact"
+            type="text"
+            placeholder="Email or phone (optional)"
+          />
+
+          <textarea
+            id="message"
+            name="message"
+            placeholder="Leave us a message 💛"
+          ></textarea>
         </div>
 
-        <!-- PREVIEWS -->
         <div id="previews" class="previews"></div>
 
-        <!-- ACTIONS -->
-        <div style="margin-top:16px">
-          <button id="submitBtn" class="button" type="submit">
-            Send
-          </button>
+        <div class="upload-actions">
+          <button id="submitBtn" class="button" type="submit">Send</button>
           <div id="selection">No files selected</div>
         </div>
 
-        <!-- STATUS -->
         <div id="status" class="status"></div>
-
       </form>
-
     </section>
 
-    <!-- FOOTER -->
     <div class="footer">
       Thank you for being part of our day 💛
     </div>
-
   </main>
 
-  <!-- SCRIPT -->
+  <div id="uploadModal" class="upload-modal" aria-hidden="true">
+    <div class="upload-dialog">
+      <div class="upload-flourish">💛</div>
+      <h3>Sending your memories</h3>
+      <p id="uploadMessage">
+        Please keep this page open while we upload everything safely.
+      </p>
+
+      <div class="upload-progress-track">
+        <div id="progressBar" class="upload-progress-bar"></div>
+      </div>
+
+      <div id="progressText" class="upload-progress-text">0%</div>
+
+      <div class="upload-subtle">
+        Larger videos may take a little longer
+      </div>
+
+      <div class="upload-dots" aria-hidden="true">
+        <span></span><span></span><span></span>
+      </div>
+    </div>
+  </div>
+
   <script>
     const API = "https://wedding-photo-upload.matt-c43.workers.dev";
 
@@ -99,6 +127,12 @@
     const form = document.getElementById("uploadForm");
     const status = document.getElementById("status");
     const selection = document.getElementById("selection");
+    const submitBtn = document.getElementById("submitBtn");
+
+    const uploadModal = document.getElementById("uploadModal");
+    const progressBar = document.getElementById("progressBar");
+    const progressText = document.getElementById("progressText");
+    const uploadMessage = document.getElementById("uploadMessage");
 
     function setStatus(type, msg) {
       status.className = "status " + type;
@@ -108,6 +142,24 @@
     function clearStatus() {
       status.className = "status";
       status.textContent = "";
+    }
+
+    function openUploadModal() {
+      uploadModal.classList.add("open");
+      uploadModal.setAttribute("aria-hidden", "false");
+      progressBar.style.width = "0%";
+      progressText.textContent = "0%";
+      uploadMessage.textContent = "Please keep this page open while we upload everything safely.";
+    }
+
+    function closeUploadModal() {
+      uploadModal.classList.remove("open");
+      uploadModal.setAttribute("aria-hidden", "true");
+    }
+
+    function formatFileSize(bytes) {
+      if (bytes < 1024 * 1024) return Math.round(bytes / 1024) + " KB";
+      return (bytes / (1024 * 1024)).toFixed(1) + " MB";
     }
 
     function previewFiles(files) {
@@ -124,23 +176,32 @@
         const div = document.createElement("div");
         div.className = "preview";
 
-        let el;
+        let media;
 
         if (file.type.startsWith("image/")) {
-          el = document.createElement("img");
+          media = document.createElement("img");
           const reader = new FileReader();
-          reader.onload = e => el.src = e.target.result;
+          reader.onload = e => {
+            media.src = e.target.result;
+          };
           reader.readAsDataURL(file);
         } else if (file.type.startsWith("video/")) {
-          el = document.createElement("video");
-          el.src = URL.createObjectURL(file);
-          el.muted = true;
+          media = document.createElement("video");
+          media.src = URL.createObjectURL(file);
+          media.muted = true;
+          media.playsInline = true;
+          media.preload = "metadata";
         } else {
-          el = document.createElement("div");
-          el.textContent = "🎞️";
+          media = document.createElement("div");
+          media.textContent = "🎞️";
         }
 
-        div.appendChild(el);
+        const meta = document.createElement("div");
+        meta.className = "preview-meta";
+        meta.textContent = `${file.name} • ${formatFileSize(file.size)}`;
+
+        div.appendChild(media);
+        div.appendChild(meta);
         previews.appendChild(div);
       });
     }
@@ -151,12 +212,25 @@
 
     dropzone.addEventListener("click", () => input.click());
 
+    dropzone.addEventListener("keydown", e => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        input.click();
+      }
+    });
+
     dropzone.addEventListener("dragover", e => {
       e.preventDefault();
+      dropzone.classList.add("dragover");
+    });
+
+    dropzone.addEventListener("dragleave", () => {
+      dropzone.classList.remove("dragover");
     });
 
     dropzone.addEventListener("drop", e => {
       e.preventDefault();
+      dropzone.classList.remove("dragover");
       input.files = e.dataTransfer.files;
       previewFiles(input.files);
     });
@@ -182,26 +256,63 @@
       data.append("contact", contact);
       data.append("message", message);
 
-      try {
-        const res = await fetch(API + "/api/upload", {
-          method: "POST",
-          body: data
-        });
+      submitBtn.disabled = true;
+      openUploadModal();
 
-        if (!res.ok) throw new Error("Upload failed");
+      try {
+        const result = await uploadWithProgress(API + "/api/upload", data, percent => {
+          progressBar.style.width = percent + "%";
+          progressText.textContent = percent + "%";
+
+          if (percent >= 100) {
+            uploadMessage.textContent = "Finalising your upload...";
+          }
+        });
 
         form.reset();
         previews.innerHTML = "";
         selection.textContent = "No files selected";
-
-        setStatus("success", "Thank you! 💛");
-
+        setStatus("success", result.message || "Thank you! 💛");
       } catch (err) {
-        setStatus("error", err.message);
+        setStatus("error", err.message || "Upload failed");
+      } finally {
+        closeUploadModal();
+        submitBtn.disabled = false;
       }
     });
 
-  </script>
+    function uploadWithProgress(url, formData, onProgress) {
+      return new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open("POST", url);
 
+        xhr.upload.addEventListener("progress", event => {
+          if (event.lengthComputable) {
+            const percent = Math.round((event.loaded / event.total) * 100);
+            onProgress(percent);
+          }
+        });
+
+        xhr.addEventListener("load", () => {
+          let response = {};
+          try {
+            response = JSON.parse(xhr.responseText || "{}");
+          } catch (_) {}
+
+          if (xhr.status >= 200 && xhr.status < 300) {
+            resolve(response);
+          } else {
+            reject(new Error(response.error || "Upload failed"));
+          }
+        });
+
+        xhr.addEventListener("error", () => {
+          reject(new Error("Network error during upload"));
+        });
+
+        xhr.send(formData);
+      });
+    }
+  </script>
 </body>
 </html>
