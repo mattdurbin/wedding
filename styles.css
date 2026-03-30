@@ -582,19 +582,23 @@ input[type="file"] {
 
 .upload-modal {
   position: fixed;
-  inset: 0;
-  background: rgba(27, 40, 52, 0.48);
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+
+  background: rgba(27, 40, 52, 0.55);
   backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
+
   display: none;
   align-items: center;
   justify-content: center;
-  padding: 20px;
-  z-index: 9999;
+
+  z-index: 99999; /* VERY IMPORTANT */
 }
 
 .upload-modal.open {
-  display: flex;
+  display: flex !important; /* force override */
 }
 
 .upload-dialog {
