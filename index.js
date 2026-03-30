@@ -24,7 +24,6 @@ function clearStatus() {
 }
 
 function openUploadModal() {
-  uploadModal.classList.add("open");
   uploadModal.setAttribute("aria-hidden", "false");
   document.body.classList.add("modal-open");
   progressBar.style.width = "0%";
@@ -33,7 +32,6 @@ function openUploadModal() {
 }
 
 function closeUploadModal() {
-  uploadModal.classList.remove("open");
   uploadModal.setAttribute("aria-hidden", "true");
   document.body.classList.remove("modal-open");
 }
