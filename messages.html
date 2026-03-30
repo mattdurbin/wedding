@@ -33,7 +33,8 @@
   </main>
 
   <script>
-   const API = "/api";
+    const API = "/api";
+
     const summary = document.getElementById("summary");
     const messagesList = document.getElementById("messagesList");
     const empty = document.getElementById("empty");
@@ -46,10 +47,10 @@
 
     async function loadMessages() {
       try {
-        const res = await fetch(API + "/api/messages");
+        const res = await fetch(API + "/messages");
         const data = await res.json();
 
-        if (!res.ok) throw new Error("Failed to load messages");
+        if (!res.ok) throw new Error(data.error || "Failed to load messages");
 
         const messages = data.messages || [];
         summary.textContent = messages.length + " message(s)";
@@ -99,7 +100,7 @@
         });
 
       } catch (err) {
-        summary.textContent = "Error loading messages";
+        summary.textContent = err.message || "Error loading messages";
       }
     }
 
