@@ -26,6 +26,18 @@ export default {
       return await exportCSV(request, env);
     }
 
+    if (url.pathname === "/api/admin/check" && request.method === "GET") {
+      return await adminCheck(request, env);
+    }
+
+    if (url.pathname === "/api/admin/login" && request.method === "POST") {
+      return await adminLogin(request, env);
+    }
+
+    if (url.pathname === "/api/admin/logout" && request.method === "POST") {
+      return await adminLogout(request, env);
+    }
+
     if (url.pathname.startsWith("/media/") && request.method === "GET") {
       return await serveMedia(request, env, url.pathname.substring("/media/".length));
     }
@@ -192,23 +204,6 @@ async function listVideos(request, env) {
   return json({ videos }, 200, request);
 }
 
-async function serveMedia(request, env, encodedKey) {
-  const key = decodeURIComponent(encodedKey);
-  const object = await env.WEDDING_UPLOADS.get(key);
-
-  if (!object) {
-    return new Response("Not found", { status: 404 });
-  }
-
-  const headers = new Headers();
-  object.writeHttpMetadata(headers);
-  headers.set("Cache-Control", "public, max-age=3600");
-  headers.set("Access-Control-Allow-Origin", request.headers.get("Origin") || "*");
-  headers.set("Vary", "Origin");
-
-  return new Response(object.body, { headers });
-}
-
 async function exportCSV(request, env) {
   const submissions = await readAllSubmissions(env);
   const rows = [["Upload ID","Date","Name","Contact","Message","Files Count"]];
@@ -236,6 +231,167 @@ async function exportCSV(request, env) {
     }
   });
 }
+
+async function serveMedia(request, env, encodedKey) {
+  const key = decodeURIComponent(encodedKey);
+  const object = await env.WEDDING_UPLOADS.get(key);
+
+  if (!object) {
+    return new Response("Not found", { status: 404 });
+  }
+
+  const headers = new Headers();
+  object.writeHttpMetadata(headers);
+  headers.set("Cache-Control", "public, max-age=3600");
+  headers.set("Access-Control-Allow-Origin", request.headers.get("Origin") || "*");
+  headers.set("Vary", "Origin");
+
+  return new Response(object.body, { headers });
+}
+
+/* =========================
+   ADMIN AUTH
+========================= */
+
+async function adminLogin(request, env) {
+  const body = await request.json().catch(() => ({}));
+  const password = String(body.password || "");
+
+  if (!env.ADMIN_PASSWORD || !env.ADMIN_SESSION_SECRET) {
+    return json({ error: "Admin secrets are not configured." }, 500, request);
+  }
+
+  if (password !== env.ADMIN_PASSWORD) {
+    return json({ error: "Incorrect password." }, 401, request);
+  }
+
+  const token = await signAdminToken(env.ADMIN_SESSION_SECRET);
+
+  return new Response(JSON.stringify({ ok: true }), {
+    status: 200,
+    headers: {
+      "content-type": "application/json; charset=utf-8",
+      "set-cookie": buildAdminCookie(token),
+      ...corsHeaders(request)
+    }
+  });
+}
+
+async function adminLogout(request, env) {
+  return new Response(JSON.stringify({ ok: true }), {
+    status: 200,
+    headers: {
+      "content-type": "application/json; charset=utf-8",
+      "set-cookie": clearAdminCookie(),
+      ...corsHeaders(request)
+    }
+  });
+}
+
+async function adminCheck(request, env) {
+  const isAuthed = await isAdminAuthenticated(request, env);
+  if (!isAuthed) {
+    return json({ ok: false }, 401, request);
+  }
+  return json({ ok: true }, 200, request);
+}
+
+async function isAdminAuthenticated(request, env) {
+  const cookies = parseCookies(request.headers.get("Cookie") || "");
+  const token = cookies.admin_session;
+  if (!token || !env.ADMIN_SESSION_SECRET) return false;
+  return await verifyAdminToken(token, env.ADMIN_SESSION_SECRET);
+}
+
+async function signAdminToken(secret) {
+  const payload = JSON.stringify({
+    issuedAt: Date.now(),
+    nonce: crypto.randomUUID()
+  });
+
+  const payloadB64 = toBase64Url(new TextEncoder().encode(payload));
+  const sig = await hmacSha256(payloadB64, secret);
+  return `${payloadB64}.${sig}`;
+}
+
+async function verifyAdminToken(token, secret) {
+  const parts = String(token || "").split(".");
+  if (parts.length !== 2) return false;
+
+  const [payloadB64, providedSig] = parts;
+  const expectedSig = await hmacSha256(payloadB64, secret);
+
+  return timingSafeEqual(providedSig, expectedSig);
+}
+
+async function hmacSha256(message, secret) {
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"]
+  );
+
+  const sig = await crypto.subtle.sign(
+    "HMAC",
+    key,
+    new TextEncoder().encode(message)
+  );
+
+  return toBase64Url(new Uint8Array(sig));
+}
+
+function timingSafeEqual(a, b) {
+  if (a.length !== b.length) return false;
+  let out = 0;
+  for (let i = 0; i < a.length; i++) {
+    out |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  }
+  return out === 0;
+}
+
+function buildAdminCookie(token) {
+  return [
+    `admin_session=${token}`,
+    "Path=/",
+    "HttpOnly",
+    "Secure",
+    "SameSite=Strict",
+    "Max-Age=604800"
+  ].join("; ");
+}
+
+function clearAdminCookie() {
+  return [
+    "admin_session=",
+    "Path=/",
+    "HttpOnly",
+    "Secure",
+    "SameSite=Strict",
+    "Max-Age=0"
+  ].join("; ");
+}
+
+function parseCookies(cookieHeader) {
+  const out = {};
+  for (const part of cookieHeader.split(";")) {
+    const [key, ...rest] = part.trim().split("=");
+    if (!key) continue;
+    out[key] = rest.join("=");
+  }
+  return out;
+}
+
+function toBase64Url(bytes) {
+  let binary = "";
+  bytes.forEach(b => binary += String.fromCharCode(b));
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+}
+
+/* =========================
+   HELPERS
+========================= */
 
 async function readAllSubmissions(env) {
   let cursor = undefined;
