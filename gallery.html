@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>Wedding Photo Gallery</title>
+  <meta name="theme-color" content="#dff2ff" />
+  <style>
+    :root{
+      --sky-1:#d9f1ff; --sky-2:#eef9ff; --sky-3:#ffffff;
+      --blue:#2489cc; --card:rgba(255,255,255,.92); --border:rgba(218,229,239,.95);
+      --text:#1f252b; --muted:#65717b; --shadow:0 18px 40px rgba(39,75,110,.14); --radius:22px;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0; font-family:"Trebuchet MS","Segoe UI",Arial,sans-serif; color:var(--text);
+      background:linear-gradient(180deg, var(--sky-1) 0%, var(--sky-2) 32%, var(--sky-3) 100%);
+    }
+    .wrap{width:min(1080px, calc(100% - 20px)); margin:0 auto; padding:18px 0 32px;}
+    .top{display:flex; gap:12px; align-items:center; justify-content:space-between; flex-wrap:wrap; margin-bottom:16px;}
+    .title{font-size:clamp(1.6rem, 5vw, 2.6rem); color:var(--blue); font-weight:800;}
+    .button{
+      display:inline-block; text-decoration:none; background:linear-gradient(180deg,#2ca6e0,#1d7fc3);
+      color:#fff; padding:12px 16px; border-radius:16px; font-weight:800; box-shadow:0 10px 20px rgba(31,135,200,.24);
+    }
+    .panel{background:var(--card); border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow); padding:18px;}
+    .muted{color:var(--muted)}
+    .grid{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; margin-top:14px;}
+    .card{background:#fff; border:1px solid var(--border); border-radius:18px; overflow:hidden; box-shadow:0 8px 18px rgba(44,71,103,.08);}
+    .card img{width:100%; aspect-ratio:1/1; object-fit:cover; display:block; background:#eaf4fb; cursor:pointer;}
+    .meta{padding:10px 12px 12px;}
+    .name{font-weight:800; color:#214d85; margin-bottom:4px}
+    .sub{color:var(--muted); font-size:.88rem}
+    .empty{padding:22px; text-align:center; color:var(--muted)}
+    .lightbox{
+      position:fixed; inset:0; background:rgba(10,16,24,.84); display:none; align-items:center; justify-content:center; z-index:10; padding:16px;
+    }
+    .lightbox.open{display:flex}
+    .lightbox img{max-width:100%; max-height:100%; border-radius:18px; box-shadow:0 20px 50px rgba(0,0,0,.35)}
+    .close{
+      position:fixed; top:14px; right:14px; background:#fff; color:#000; border:0; border-radius:999px; width:44px; height:44px; font-size:22px;
+    }
+    @media (min-width:700px){ .grid{grid-template-columns:repeat(3,minmax(0,1fr));} }
+    @media (min-width:1000px){ .grid{grid-template-columns:repeat(4,minmax(0,1fr));} }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <div class="top">
+      <div>
+        <div class="title">Wedding Photo Gallery</div>
+        <div class="muted">Uploaded photos shared for Kimberley & Matthew.</div>
+      </div>
+      <a class="button" href="index.html">Back to upload</a>
+    </div>
+
+    <section class="panel">
+      <div class="muted" id="summary">Loading gallery...</div>
+      <div class="grid" id="grid"></div>
+      <div class="empty" id="empty" hidden>No photos have been uploaded yet.</div>
+    </section>
+  </main>
+
+  <div class="lightbox" id="lightbox" role="dialog" aria-modal="true">
+    <button class="close" id="closeBtn" aria-label="Close">×</button>
+    <img id="lightboxImage" alt="Wedding photo" />
+  </div>
+
+  <script>
+    const API_BASE = "https://wedding-photo-upload.matt-c43.workers.dev";
+    const grid = document.getElementById("grid");
+    const summary = document.getElementById("summary");
+    const empty = document.getElementById("empty");
+    const lightbox = document.getElementById("lightbox");
+    const lightboxImage = document.getElementById("lightboxImage");
+    const closeBtn = document.getElementById("closeBtn");
+
+    function formatDate(value){
+      if (!value) return "";
+      const d = new Date(value);
+      return isNaN(d) ? value : d.toLocaleString();
+    }
+
+    function openLightbox(src){
+      lightboxImage.src = src;
+      lightbox.classList.add("open");
+    }
+
+    function closeLightbox(){
+      lightbox.classList.remove("open");
+      lightboxImage.src = "";
+    }
+
+    closeBtn.addEventListener("click", closeLightbox);
+    lightbox.addEventListener("click", (e) => { if (e.target === lightbox) closeLightbox(); });
+
+    async function loadGallery(){
+      try{
+        const response = await fetch(`${API_BASE}/api/gallery`);
+        const data = await response.json();
+
+        if (!response.ok) throw new Error(data.error || "Could not load gallery.");
+
+        summary.textContent = `${data.photos.length} photo${data.photos.length === 1 ? "" : "s"} in the gallery`;
+
+        if (!data.photos.length){
+          empty.hidden = false;
+          return;
+        }
+
+        data.photos.forEach(photo => {
+          const card = document.createElement("article");
+          card.className = "card";
+
+          const img = document.createElement("img");
+          img.src = photo.url;
+          img.alt = photo.originalName || "Wedding photo";
+          img.loading = "lazy";
+          img.addEventListener("click", () => openLightbox(photo.url));
+
+          const meta = document.createElement("div");
+          meta.className = "meta";
+
+          const name = document.createElement("div");
+          name.className = "name";
+          name.textContent = photo.guestName || "Guest upload";
+
+          const sub = document.createElement("div");
+          sub.className = "sub";
+          sub.textContent = `${formatDate(photo.uploadedAt)}${photo.originalName ? " · " + photo.originalName : ""}`;
+
+          meta.appendChild(name);
+          meta.appendChild(sub);
+          card.appendChild(img);
+          card.appendChild(meta);
+          grid.appendChild(card);
+        });
+      } catch (err){
+        summary.textContent = err.message || "Could not load gallery.";
+      }
+    }
+
+    loadGallery();
+  </script>
+</body>
+</html>

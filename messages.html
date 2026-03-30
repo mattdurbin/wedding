@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>Guest Messages</title>
+  <meta name="theme-color" content="#dff2ff" />
+  <style>
+    :root{
+      --sky-1:#d9f1ff; --sky-2:#eef9ff; --sky-3:#ffffff;
+      --blue:#2489cc; --card:rgba(255,255,255,.92); --border:rgba(218,229,239,.95);
+      --text:#1f252b; --muted:#65717b; --shadow:0 18px 40px rgba(39,75,110,.14); --radius:22px;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0; font-family:"Trebuchet MS","Segoe UI",Arial,sans-serif; color:var(--text);
+      background:linear-gradient(180deg, var(--sky-1) 0%, var(--sky-2) 32%, var(--sky-3) 100%);
+    }
+    .wrap{width:min(900px, calc(100% - 20px)); margin:0 auto; padding:18px 0 32px;}
+    .top{display:flex; gap:12px; align-items:center; justify-content:space-between; flex-wrap:wrap; margin-bottom:16px;}
+    .title{font-size:clamp(1.6rem, 5vw, 2.6rem); color:var(--blue); font-weight:800;}
+    .button{
+      display:inline-block; text-decoration:none; background:linear-gradient(180deg,#2ca6e0,#1d7fc3);
+      color:#fff; padding:12px 16px; border-radius:16px; font-weight:800; box-shadow:0 10px 20px rgba(31,135,200,.24);
+    }
+    .muted{color:var(--muted)}
+    .stack{display:grid; gap:14px; margin-top:14px;}
+    .card{background:var(--card); border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow); padding:16px 18px;}
+    .head{display:flex; justify-content:space-between; gap:10px; align-items:flex-start; margin-bottom:10px;}
+    .name{font-weight:800; color:#214d85; font-size:1.06rem}
+    .sub{color:var(--muted); font-size:.9rem}
+    .message{white-space:pre-wrap; line-height:1.6;}
+    .tags{margin-top:10px; display:flex; gap:8px; flex-wrap:wrap;}
+    .tag{background:#eef7fd; color:#35648b; border-radius:999px; padding:6px 10px; font-size:.82rem; font-weight:700}
+    .empty{padding:22px; text-align:center; color:var(--muted)}
+    .privacy-note{margin-top:8px; font-size:.88rem; color:var(--muted)}
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <div class="top">
+      <div>
+        <div class="title">Guest Messages</div>
+        <div class="muted">Messages, memories, and well wishes left for Kimberley & Matthew.</div>
+        <div class="privacy-note">Contact details are hidden from public view.</div>
+      </div>
+      <a class="button" href="index.html">Back to upload</a>
+    </div>
+
+    <div class="muted" id="summary">Loading messages...</div>
+    <section class="stack" id="stack"></section>
+    <div class="empty" id="empty" hidden>No messages have been left yet.</div>
+  </main>
+
+  <script>
+    const API_BASE = "https://wedding-photo-upload.matt-c43.workers.dev";
+    const summary = document.getElementById("summary");
+    const stack = document.getElementById("stack");
+    const empty = document.getElementById("empty");
+
+    function formatDate(value){
+      if (!value) return "";
+      const d = new Date(value);
+      return isNaN(d) ? value : d.toLocaleString();
+    }
+
+    async function loadMessages(){
+      try{
+        const response = await fetch(`${API_BASE}/api/messages`);
+        const data = await response.json();
+
+        if (!response.ok) throw new Error(data.error || "Could not load messages.");
+
+        summary.textContent = `${data.messages.length} message${data.messages.length === 1 ? "" : "s"} found`;
+
+        if (!data.messages.length){
+          empty.hidden = false;
+          return;
+        }
+
+        data.messages.forEach(item => {
+          const card = document.createElement("article");
+          card.className = "card";
+
+          const head = document.createElement("div");
+          head.className = "head";
+
+          const left = document.createElement("div");
+          const name = document.createElement("div");
+          name.className = "name";
+          name.textContent = item.guestName || "Guest";
+          const sub = document.createElement("div");
+          sub.className = "sub";
+          sub.textContent = formatDate(item.uploadedAt);
+          left.appendChild(name);
+          left.appendChild(sub);
+
+          head.appendChild(left);
+
+          const message = document.createElement("div");
+          message.className = "message";
+          message.textContent = item.message || "(No message text)";
+
+          const tags = document.createElement("div");
+          tags.className = "tags";
+          if (item.filesCount) {
+            const t = document.createElement("div");
+            t.className = "tag";
+            t.textContent = `${item.filesCount} file${item.filesCount === 1 ? "" : "s"} attached`;
+            tags.appendChild(t);
+          }
+          if (item.hasPhotos) {
+            const t = document.createElement("div");
+            t.className = "tag";
+            t.textContent = "Photos included";
+            tags.appendChild(t);
+          }
+          if (item.hasVideos) {
+            const t = document.createElement("div");
+            t.className = "tag";
+            t.textContent = "Videos included";
+            tags.appendChild(t);
+          }
+
+          card.appendChild(head);
+          card.appendChild(message);
+          if (tags.childNodes.length) card.appendChild(tags);
+          stack.appendChild(card);
+        });
+      } catch (err){
+        summary.textContent = err.message || "Could not load messages.";
+      }
+    }
+
+    loadMessages();
+  </script>
+</body>
+</html>
