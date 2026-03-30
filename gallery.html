@@ -3,164 +3,629 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-
-  <title>Photo Gallery</title>
-
+  <title>Gallery | Kimberley & Matthew</title>
   <link rel="stylesheet" href="styles.css">
 
   <style>
-    /* Lightbox */
+    .gallery-toolbar {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+
+    .gallery-controls {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .gallery-select {
+      padding: 10px 12px;
+      border: 1px solid #dbe3ea;
+      border-radius: 12px;
+      background: #fff;
+      font-size: 0.95rem;
+      color: #243746;
+    }
+
+    .gallery-summary {
+      font-size: 0.95rem;
+      color: #5e6d78;
+    }
+
+    .featured-section {
+      margin-bottom: 22px;
+    }
+
+    .section-heading {
+      margin: 0 0 12px;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 1.4rem;
+      color: #243746;
+    }
+
+    .featured-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+
+    .featured-card {
+      background: #ffffff;
+      border-radius: 16px;
+      border: 1px solid #e1e8ef;
+      overflow: hidden;
+      box-shadow: 0 10px 24px rgba(40, 70, 100, 0.08);
+      position: relative;
+    }
+
+    .featured-badge {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      z-index: 2;
+      background: rgba(200, 166, 76, 0.95);
+      color: #fff;
+      font-size: 0.78rem;
+      font-weight: 700;
+      padding: 6px 10px;
+      border-radius: 999px;
+    }
+
+    .featured-card img,
+    .featured-card video {
+      width: 100%;
+      aspect-ratio: 4 / 3;
+      object-fit: cover;
+      display: block;
+      background: #eef6fb;
+      cursor: pointer;
+    }
+
+    .featured-meta {
+      padding: 12px;
+      font-size: 0.92rem;
+      color: #5e6d78;
+    }
+
+    .media-card {
+      background: #ffffff;
+      border-radius: 14px;
+      border: 1px solid #e1e8ef;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .media-card img,
+    .media-card video {
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      object-fit: cover;
+      display: block;
+      background: #eef6fb;
+      cursor: pointer;
+    }
+
+    .media-type-badge {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      z-index: 2;
+      background: rgba(36, 55, 70, 0.85);
+      color: #fff;
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 5px 8px;
+      border-radius: 999px;
+    }
+
+    .media-meta {
+      padding: 10px;
+      font-size: 0.9rem;
+      color: #5e6d78;
+      line-height: 1.4;
+    }
+
+    .media-meta strong {
+      color: #1d4e89;
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    .gallery-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+    }
+
+    .load-more-wrap {
+      text-align: center;
+      margin-top: 18px;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    .empty-state {
+      text-align: center;
+      color: #6b7a86;
+      padding: 24px 12px;
+    }
+
     .lightbox {
       position: fixed;
       inset: 0;
-      background: rgba(0,0,0,0.85);
+      background: rgba(0, 0, 0, 0.88);
       display: none;
       align-items: center;
       justify-content: center;
-      z-index: 10;
-    }
-
-    .lightbox img {
-      max-width: 95%;
-      max-height: 90%;
-      border-radius: 12px;
+      z-index: 999;
+      padding: 20px;
     }
 
     .lightbox.open {
       display: flex;
     }
 
-    .close {
+    .lightbox-content {
+      position: relative;
+      width: 100%;
+      max-width: 1100px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .lightbox-media {
+      max-width: 100%;
+      max-height: 82vh;
+      border-radius: 14px;
+      background: #000;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.35);
+    }
+
+    .lightbox img.lightbox-media,
+    .lightbox video.lightbox-media {
+      width: auto;
+      height: auto;
+    }
+
+    .lightbox-close,
+    .lightbox-prev,
+    .lightbox-next {
       position: absolute;
-      top: 20px;
-      right: 20px;
-      background: white;
       border: none;
-      border-radius: 50%;
-      width: 40px;
-      height: 40px;
-      font-size: 20px;
       cursor: pointer;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.92);
+      color: #243746;
+      width: 46px;
+      height: 46px;
+      font-size: 22px;
+      font-weight: 700;
+    }
+
+    .lightbox-close {
+      top: -56px;
+      right: 0;
+    }
+
+    .lightbox-prev {
+      left: 8px;
+      top: 50%;
+      transform: translateY(-50%);
+    }
+
+    .lightbox-next {
+      right: 8px;
+      top: 50%;
+      transform: translateY(-50%);
+    }
+
+    .lightbox-caption {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: -64px;
+      color: #fff;
+      text-align: center;
+      font-size: 0.95rem;
+      line-height: 1.4;
+    }
+
+    @media (min-width: 700px) {
+      .featured-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .gallery-grid {
+        grid-template-columns: repeat(3, 1fr);
+      }
+    }
+
+    @media (min-width: 1000px) {
+      .gallery-grid {
+        grid-template-columns: repeat(4, 1fr);
+      }
     }
   </style>
 </head>
 
 <body>
-
   <main class="wrap">
-
-    <!-- HEADER -->
     <section class="hero">
       <h1 class="names">
-        Photo Gallery
+        Gallery
       </h1>
-
       <p class="subtitle">
-        Photos shared by guests 💛
+        Photos and videos shared by guests 💛
       </p>
     </section>
 
-    <!-- BACK LINK -->
     <a href="index.html" class="nav-card">
-      ← Back to upload
+      <div class="nav-title">← Back to upload</div>
+      <div class="nav-copy">Share more photos, videos, or messages</div>
     </a>
 
-    <!-- GALLERY -->
     <section class="panel">
+      <div class="gallery-toolbar">
+        <div class="gallery-summary" id="summary">Loading gallery...</div>
 
-      <div id="summary" class="subtitle">Loading photos...</div>
-
-      <div id="grid" class="grid"></div>
-
-      <div id="empty" class="subtitle" style="display:none;">
-        No photos yet
+        <div class="gallery-controls">
+          <label for="sortOrder" class="gallery-summary">Sort:</label>
+          <select id="sortOrder" class="gallery-select">
+            <option value="newest">Newest first</option>
+            <option value="oldest">Oldest first</option>
+          </select>
+        </div>
       </div>
 
+      <div class="featured-section">
+        <h2 class="section-heading">Featured</h2>
+        <div id="featuredGrid" class="featured-grid"></div>
+      </div>
+
+      <div>
+        <h2 class="section-heading">All uploads</h2>
+        <div id="galleryGrid" class="gallery-grid"></div>
+        <div id="emptyState" class="empty-state hidden">Nothing has been uploaded yet.</div>
+
+        <div class="load-more-wrap">
+          <button id="loadMoreBtn" class="button hidden" type="button">Load more</button>
+        </div>
+      </div>
     </section>
 
+    <div class="footer">
+      Thank you for sharing your memories 💛
+    </div>
   </main>
 
-  <!-- LIGHTBOX -->
-  <div id="lightbox" class="lightbox">
-    <button class="close" id="closeBtn">×</button>
-    <img id="lightboxImage" />
+  <div id="lightbox" class="lightbox" aria-hidden="true">
+    <div class="lightbox-content">
+      <button id="lightboxClose" class="lightbox-close" type="button" aria-label="Close">×</button>
+      <button id="lightboxPrev" class="lightbox-prev" type="button" aria-label="Previous">‹</button>
+      <div id="lightboxMediaWrap"></div>
+      <button id="lightboxNext" class="lightbox-next" type="button" aria-label="Next">›</button>
+      <div id="lightboxCaption" class="lightbox-caption"></div>
+    </div>
   </div>
 
-  <!-- SCRIPT -->
   <script>
     const API = "https://wedding-photo-upload.matt-c43.workers.dev";
+    const PAGE_SIZE = 12;
+    const FEATURED_COUNT = 4;
 
-    const grid = document.getElementById("grid");
-    const summary = document.getElementById("summary");
-    const empty = document.getElementById("empty");
+    const summaryEl = document.getElementById("summary");
+    const featuredGrid = document.getElementById("featuredGrid");
+    const galleryGrid = document.getElementById("galleryGrid");
+    const emptyState = document.getElementById("emptyState");
+    const sortOrder = document.getElementById("sortOrder");
+    const loadMoreBtn = document.getElementById("loadMoreBtn");
 
     const lightbox = document.getElementById("lightbox");
-    const lightboxImage = document.getElementById("lightboxImage");
+    const lightboxMediaWrap = document.getElementById("lightboxMediaWrap");
+    const lightboxCaption = document.getElementById("lightboxCaption");
+    const lightboxClose = document.getElementById("lightboxClose");
+    const lightboxPrev = document.getElementById("lightboxPrev");
+    const lightboxNext = document.getElementById("lightboxNext");
 
-    function openLightbox(src) {
-      lightboxImage.src = src;
+    let allItems = [];
+    let visibleCount = PAGE_SIZE;
+    let currentIndex = 0;
+    let touchStartX = 0;
+    let touchEndX = 0;
+
+    function formatDate(dateString) {
+      const d = new Date(dateString);
+      if (isNaN(d)) return "";
+      return d.toLocaleString();
+    }
+
+    function escapeHtml(str = "") {
+      return String(str)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function normaliseItems(data) {
+      const photos = (data.photos || []).map(item => ({
+        ...item,
+        mediaType: "photo",
+        featured: false
+      }));
+
+      const videos = (data.videos || []).map(item => ({
+        ...item,
+        mediaType: "video",
+        featured: false
+      }));
+
+      return [...photos, ...videos];
+    }
+
+    function sortItems(items) {
+      const sorted = [...items];
+      if (sortOrder.value === "oldest") {
+        sorted.sort((a, b) => new Date(a.uploadedAt) - new Date(b.uploadedAt));
+      } else {
+        sorted.sort((a, b) => new Date(b.uploadedAt) - new Date(a.uploadedAt));
+      }
+      return sorted;
+    }
+
+    function pickFeatured(items) {
+      return items.slice(0, FEATURED_COUNT).map(item => ({ ...item, featured: true }));
+    }
+
+    function renderFeatured(items) {
+      featuredGrid.innerHTML = "";
+
+      const featured = pickFeatured(items);
+
+      if (!featured.length) {
+        featuredGrid.innerHTML = '<div class="empty-state">No featured uploads yet.</div>';
+        return;
+      }
+
+      featured.forEach((item) => {
+        const card = document.createElement("div");
+        card.className = "featured-card";
+
+        const badge = document.createElement("div");
+        badge.className = "featured-badge";
+        badge.textContent = item.mediaType === "video" ? "Featured video" : "Featured photo";
+
+        let media;
+        if (item.mediaType === "video") {
+          media = document.createElement("video");
+          media.src = item.url;
+          media.muted = true;
+          media.playsInline = true;
+          media.preload = "metadata";
+        } else {
+          media = document.createElement("img");
+          media.src = item.url;
+          media.alt = item.originalName || "Wedding upload";
+          media.loading = "lazy";
+        }
+
+        media.addEventListener("click", () => openLightboxByItem(item));
+
+        const meta = document.createElement("div");
+        meta.className = "featured-meta";
+        meta.innerHTML = `
+          <strong>${escapeHtml(item.guestName || "Guest")}</strong>
+          ${escapeHtml(formatDate(item.uploadedAt))}${item.originalName ? " · " + escapeHtml(item.originalName) : ""}
+        `;
+
+        card.appendChild(badge);
+        card.appendChild(media);
+        card.appendChild(meta);
+        featuredGrid.appendChild(card);
+      });
+    }
+
+    function renderGallery(items) {
+      galleryGrid.innerHTML = "";
+
+      if (!items.length) {
+        emptyState.classList.remove("hidden");
+        loadMoreBtn.classList.add("hidden");
+        return;
+      }
+
+      emptyState.classList.add("hidden");
+
+      const featuredKeys = new Set(pickFeatured(items).map(item => item.url));
+      const nonFeatured = items.filter(item => !featuredKeys.has(item.url));
+      const visibleItems = nonFeatured.slice(0, visibleCount);
+
+      visibleItems.forEach((item) => {
+        const card = document.createElement("div");
+        card.className = "media-card";
+
+        const typeBadge = document.createElement("div");
+        typeBadge.className = "media-type-badge";
+        typeBadge.textContent = item.mediaType === "video" ? "Video" : "Photo";
+
+        let media;
+        if (item.mediaType === "video") {
+          media = document.createElement("video");
+          media.src = item.url;
+          media.muted = true;
+          media.playsInline = true;
+          media.preload = "metadata";
+        } else {
+          media = document.createElement("img");
+          media.src = item.url;
+          media.alt = item.originalName || "Wedding upload";
+          media.loading = "lazy";
+        }
+
+        media.addEventListener("click", () => openLightboxByItem(item));
+
+        const meta = document.createElement("div");
+        meta.className = "media-meta";
+        meta.innerHTML = `
+          <strong>${escapeHtml(item.guestName || "Guest")}</strong>
+          ${escapeHtml(formatDate(item.uploadedAt))}${item.originalName ? "<br>" + escapeHtml(item.originalName) : ""}
+        `;
+
+        card.appendChild(typeBadge);
+        card.appendChild(media);
+        card.appendChild(meta);
+        galleryGrid.appendChild(card);
+      });
+
+      if (visibleCount < nonFeatured.length) {
+        loadMoreBtn.classList.remove("hidden");
+      } else {
+        loadMoreBtn.classList.add("hidden");
+      }
+    }
+
+    function refreshView() {
+      const sorted = sortItems(allItems);
+      summaryEl.textContent = `${sorted.length} upload${sorted.length === 1 ? "" : "s"} in the gallery`;
+      renderFeatured(sorted);
+      renderGallery(sorted);
+    }
+
+    function getCurrentSortedItems() {
+      return sortItems(allItems);
+    }
+
+    function findItemIndex(item) {
+      const items = getCurrentSortedItems();
+      return items.findIndex(x => x.url === item.url);
+    }
+
+    function openLightboxByItem(item) {
+      currentIndex = findItemIndex(item);
+      openLightbox();
+    }
+
+    function openLightbox() {
+      const items = getCurrentSortedItems();
+      if (!items.length || currentIndex < 0 || currentIndex >= items.length) return;
+
+      const item = items[currentIndex];
+      lightboxMediaWrap.innerHTML = "";
+
+      let media;
+      if (item.mediaType === "video") {
+        media = document.createElement("video");
+        media.src = item.url;
+        media.className = "lightbox-media";
+        media.controls = true;
+        media.autoplay = true;
+        media.playsInline = true;
+      } else {
+        media = document.createElement("img");
+        media.src = item.url;
+        media.alt = item.originalName || "Wedding upload";
+        media.className = "lightbox-media";
+      }
+
+      lightboxMediaWrap.appendChild(media);
+      lightboxCaption.textContent =
+        `${item.guestName || "Guest"} • ${formatDate(item.uploadedAt)}${item.originalName ? " • " + item.originalName : ""}`;
+
       lightbox.classList.add("open");
+      lightbox.setAttribute("aria-hidden", "false");
     }
 
     function closeLightbox() {
       lightbox.classList.remove("open");
-      lightboxImage.src = "";
+      lightbox.setAttribute("aria-hidden", "true");
+      lightboxMediaWrap.innerHTML = "";
     }
 
-    document.getElementById("closeBtn").addEventListener("click", closeLightbox);
+    function showPrev() {
+      const items = getCurrentSortedItems();
+      if (!items.length) return;
+      currentIndex = (currentIndex - 1 + items.length) % items.length;
+      openLightbox();
+    }
 
-    lightbox.addEventListener("click", e => {
+    function showNext() {
+      const items = getCurrentSortedItems();
+      if (!items.length) return;
+      currentIndex = (currentIndex + 1) % items.length;
+      openLightbox();
+    }
+
+    lightboxClose.addEventListener("click", closeLightbox);
+    lightboxPrev.addEventListener("click", showPrev);
+    lightboxNext.addEventListener("click", showNext);
+
+    lightbox.addEventListener("click", (e) => {
       if (e.target === lightbox) closeLightbox();
     });
 
-    function formatDate(date) {
-      const d = new Date(date);
-      return d.toLocaleString();
-    }
+    document.addEventListener("keydown", (e) => {
+      if (!lightbox.classList.contains("open")) return;
+      if (e.key === "Escape") closeLightbox();
+      if (e.key === "ArrowLeft") showPrev();
+      if (e.key === "ArrowRight") showNext();
+    });
+
+    lightbox.addEventListener("touchstart", (e) => {
+      touchStartX = e.changedTouches[0].screenX;
+    });
+
+    lightbox.addEventListener("touchend", (e) => {
+      touchEndX = e.changedTouches[0].screenX;
+      const delta = touchEndX - touchStartX;
+      if (Math.abs(delta) < 40) return;
+      if (delta > 0) {
+        showPrev();
+      } else {
+        showNext();
+      }
+    });
+
+    loadMoreBtn.addEventListener("click", () => {
+      visibleCount += PAGE_SIZE;
+      refreshView();
+    });
+
+    sortOrder.addEventListener("change", () => {
+      visibleCount = PAGE_SIZE;
+      refreshView();
+    });
 
     async function loadGallery() {
       try {
-        const res = await fetch(API + "/api/gallery");
-        const data = await res.json();
+        const [photoRes, videoRes] = await Promise.all([
+          fetch(API + "/api/gallery"),
+          fetch(API + "/api/videos").catch(() => null)
+        ]);
 
-        if (!res.ok) throw new Error("Failed to load");
+        const photoData = photoRes && photoRes.ok ? await photoRes.json() : { photos: [] };
+        const videoData = videoRes && videoRes.ok ? await videoRes.json() : { videos: [] };
 
-        summary.textContent = data.photos.length + " photo(s)";
-
-        if (!data.photos.length) {
-          empty.style.display = "block";
-          return;
-        }
-
-        data.photos.forEach(photo => {
-          const card = document.createElement("div");
-          card.className = "card";
-
-          const img = document.createElement("img");
-          img.src = photo.url;
-          img.loading = "lazy";
-
-          img.addEventListener("click", () => {
-            openLightbox(photo.url);
-          });
-
-          const meta = document.createElement("div");
-          meta.className = "meta";
-          meta.textContent = (photo.guestName || "Guest") + " • " + formatDate(photo.uploadedAt);
-
-          card.appendChild(img);
-          card.appendChild(meta);
-
-          grid.appendChild(card);
+        allItems = normaliseItems({
+          photos: photoData.photos || [],
+          videos: videoData.videos || []
         });
 
+        refreshView();
       } catch (err) {
-        summary.textContent = "Error loading gallery";
+        summaryEl.textContent = "Error loading gallery";
       }
     }
 
     loadGallery();
   </script>
-
 </body>
 </html>
