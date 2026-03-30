@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Admin</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="wrap">
+    <section class="hero">
+      <h1 class="names">Admin</h1>
+      <p class="subtitle">Private access only</p>
+    </section>
+
+    <section class="panel">
+      <h2 class="panel-heading">Sign in</h2>
+      <p class="panel-copy">Enter your admin password to manage uploads.</p>
+
+      <form id="adminLoginForm" class="fields">
+        <input id="adminPassword" type="password" placeholder="Admin password" />
+        <button class="button" type="submit">Log in</button>
+      </form>
+
+      <div id="adminStatus" class="status"></div>
+    </section>
+  </main>
+
+  <script>
+    const API = "https://wedding-photo-upload.matt-c43.workers.dev";
+    const form = document.getElementById("adminLoginForm");
+    const status = document.getElementById("adminStatus");
+
+    function setStatus(type, msg) {
+      status.className = "status " + type;
+      status.textContent = msg;
+    }
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      setStatus("", "");
+
+      const password = document.getElementById("adminPassword").value;
+
+      try {
+        const res = await fetch(API + "/api/admin/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ password })
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) throw new Error(data.error || "Login failed");
+
+        setStatus("success", "Logged in");
+      } catch (err) {
+        setStatus("error", err.message || "Login failed");
+      }
+    });
+  </script>
+</body>
+</html>
