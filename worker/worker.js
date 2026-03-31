@@ -58,6 +58,9 @@ export default {
       return await serveMedia(request, env, url.pathname.substring("/api/media/".length));
     }
 
+ if (url.pathname === "/api/admin/delete-message" && request.method === "POST") {
+  return await adminDeleteMessage(request, env);
+}
     return new Response("Not found", { status: 404 });
   }
 };
@@ -694,4 +697,33 @@ function json(data, status = 200, request = new Request("https://example.com")) 
       ...corsHeaders(request)
     }
   });
+}
+
+async function adminDeleteMessage(request, env) {
+  if (!(await isAdminAuthenticated(request, env))) {
+    return json({ error: "Unauthorised" }, 401, request);
+  }
+
+  const body = await request.json().catch(() => ({}));
+  const uploadId = String(body.uploadId || "").trim();
+
+  if (!uploadId) {
+    return json({ error: "Missing uploadId" }, 400, request);
+  }
+
+  const record = await findSubmissionByUploadId(env, uploadId);
+  if (!record) {
+    return json({ error: "Submission not found" }, 404, request);
+  }
+
+  record.data.message = "";
+  record.data.contact = "";
+
+  await env.WEDDING_UPLOADS.put(
+    record.metadataKey,
+    JSON.stringify(record.data, null, 2),
+    { httpMetadata: { contentType: "application/json" } }
+  );
+
+  return json({ ok: true }, 200, request);
 }
