@@ -215,6 +215,17 @@ async function setFiles(files) {
   previewFiles(selectedFiles);
 }
 
+function resetTurnstile() {
+  const responseInput = document.querySelector('[name="cf-turnstile-response"]');
+  if (responseInput) responseInput.value = "";
+
+  if (window.turnstile) {
+    try {
+      window.turnstile.reset();
+    } catch (_) {}
+  }
+}
+
 input.addEventListener("change", async () => {
   await setFiles(input.files);
 });
@@ -251,9 +262,16 @@ form.addEventListener("submit", async (e) => {
   const message = document.getElementById("message").value.trim();
   const guestName = document.getElementById("guestName").value.trim();
   const contact = document.getElementById("contact").value.trim();
+  const turnstileToken =
+    document.querySelector('[name="cf-turnstile-response"]')?.value?.trim() || "";
 
   if (!files.length && !message && !guestName && !contact) {
     setStatus("error", "Please upload something or leave a message");
+    return;
+  }
+
+  if (!turnstileToken) {
+    setStatus("error", "Please complete the human check");
     return;
   }
 
@@ -269,6 +287,7 @@ form.addEventListener("submit", async (e) => {
   data.append("guestName", guestName);
   data.append("contact", contact);
   data.append("message", message);
+  data.append("turnstileToken", turnstileToken);
 
   submitBtn.disabled = true;
   openUploadModal();
@@ -288,8 +307,10 @@ form.addEventListener("submit", async (e) => {
     previews.innerHTML = "";
     selection.textContent = "No files selected";
     setStatus("success", result.message || "Thank you! 💛");
+    resetTurnstile();
   } catch (err) {
     setStatus("error", err.message || "Upload failed");
+    resetTurnstile();
   } finally {
     closeUploadModal();
     submitBtn.disabled = false;
