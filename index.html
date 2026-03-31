@@ -4,15 +4,11 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Kimberley & Matthew</title>
-  <link rel="stylesheet" href="styles.css">
-   <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
-<link rel="preconnect" href="https://challenges.cloudflare.com">
-    
-<style>
-  .upload-modal { position: fixed !important; inset: 0 !important; display: none !important; align-items: center !important; justify-content: center !important; background: rgba(27,40,52,.55) !important; z-index: 99999 !important; }
-  .upload-modal.open { display: flex !important; }
-  .upload-dialog { width: min(460px, 100%) !important; background: white !important; padding: 24px !important; border-radius: 20px !important; }
-</style>
+
+  <link rel="stylesheet" href="styles.css?v=12">
+
+  <!-- Cloudflare Turnstile -->
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
 </head>
 <body>
 
@@ -49,13 +45,8 @@
       </p>
 
       <form id="uploadForm">
-        <input
-          id="mediaFiles"
-          name="media"
-          type="file"
-          accept="image/*,video/*"
-          multiple
-        />
+
+        <input id="mediaFiles" type="file" accept="image/*,video/*" multiple />
 
         <div id="dropzone" class="dropzone" role="button" tabindex="0">
           <div class="dropzone-title">Tap to choose photos or videos</div>
@@ -67,32 +58,34 @@
         <div class="fields">
           <input
             id="guestName"
-            name="guestName"
             type="text"
             placeholder="Your name (optional)"
           />
 
           <input
             id="contact"
-            name="contact"
             type="text"
             placeholder="Email or phone (optional)"
           />
 
           <textarea
             id="message"
-            name="message"
             placeholder="Leave us a message 💛"
           ></textarea>
         </div>
 
         <div id="previews" class="previews"></div>
- <div
-  class="cf-turnstile"
-  data-sitekey="0x4AAAAAACxsnHHOslprGdx_"
-  data-theme="light"
-  data-size="flexible">
-</div>
+
+        <!-- TURNSTILE -->
+        <div style="margin-top:16px;">
+          <div
+            class="cf-turnstile"
+            data-sitekey="0x4AAAAAACxsnHHOslprGdx_"
+            data-theme="light"
+            data-size="flexible">
+          </div>
+        </div>
+
         <div class="upload-actions">
           <button id="submitBtn" class="button" type="submit">Send</button>
           <div id="selection">No files selected</div>
@@ -105,12 +98,15 @@
     <div class="footer">
       Thank you for being part of our day 💛
     </div>
+
   </main>
 
-   <div id="uploadModal" class="upload-modal" aria-hidden="true">
+  <!-- Upload Modal -->
+  <div id="uploadModal" class="upload-modal" aria-hidden="true">
     <div class="upload-dialog">
       <div class="upload-flourish">💛</div>
       <h3>Sending your memories</h3>
+
       <p id="uploadMessage">
         Please keep this page open while we upload everything safely.
       </p>
@@ -125,12 +121,14 @@
         Larger videos may take a little longer
       </div>
 
-      <div class="upload-dots" aria-hidden="true">
+      <div class="upload-dots">
         <span></span><span></span><span></span>
       </div>
     </div>
   </div>
 
-  <script src="index.js"></script>
+  <!-- Your JS -->
+  <script src="index.js?v=12"></script>
+
 </body>
 </html>
