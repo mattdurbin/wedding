@@ -197,3 +197,35 @@ function uploadWithProgress(url, formData, onProgress) {
     xhr.send(formData);
   });
 }
+
+ async function createThumbnail(file) {
+  const img = await loadImage(file);
+
+  const maxSize = 400;
+
+  let width = img.width;
+  let height = img.height;
+
+  if (width > height) {
+    height = Math.round((height * maxSize) / width);
+    width = maxSize;
+  } else {
+    width = Math.round((width * maxSize) / height);
+    height = maxSize;
+  }
+
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+
+  const ctx = canvas.getContext("2d");
+  ctx.drawImage(img, 0, 0, width, height);
+
+  const blob = await new Promise((resolve) =>
+    canvas.toBlob(resolve, "image/jpeg", 0.75)
+  );
+
+  return new File([blob], file.name.replace(/\.[^.]+$/, "_thumb.jpg"), {
+    type: "image/jpeg"
+  });
+}
