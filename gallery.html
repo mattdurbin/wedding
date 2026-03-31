@@ -152,7 +152,7 @@
         media.preload = "metadata";
       } else {
         media = document.createElement("img");
-        media.src = item.url;
+        media.src = item.thumbUrl || item.url;
         media.alt = item.originalName || "Wedding upload";
         media.loading = "lazy";
       }
