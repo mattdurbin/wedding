@@ -72,6 +72,8 @@ async function handleUpload(request, env) {
   const formData = await request.formData();
 
   const uploads = formData.getAll("media").filter(item => item instanceof File && item.name);
+  const thumbs = formData.getAll("thumb").filter(item => item instanceof File && item.name);
+
   const guestName = sanitizeText(formData.get("guestName"));
   const contact = sanitizeText(formData.get("contact"));
   const message = sanitizeText(formData.get("message"), 1500);
@@ -83,6 +85,7 @@ async function handleUpload(request, env) {
   const uploadId = crypto.randomUUID();
   const timestamp = new Date().toISOString();
   const saved = [];
+  let thumbIndex = 0;
 
   for (const file of uploads) {
     if (file.size > MAX_FILE_SIZE) {
@@ -115,8 +118,34 @@ async function handleUpload(request, env) {
       }
     });
 
+    let thumbKey = null;
+
+    if (category === "photos" && thumbs[thumbIndex]) {
+      const thumbFile = thumbs[thumbIndex];
+      const thumbExt = getExtension(thumbFile.name) || "jpg";
+      const thumbMime = thumbFile.type || "image/jpeg";
+
+      thumbKey = `wedding-uploads/${datePath()}/${uploadId}/thumbs/${safeBaseName}-${crypto.randomUUID()}.${thumbExt}`;
+
+      await env.WEDDING_UPLOADS.put(thumbKey, await thumbFile.arrayBuffer(), {
+        httpMetadata: { contentType: thumbMime },
+        customMetadata: {
+          originalName: thumbFile.name,
+          guestName,
+          contact,
+          message,
+          uploadedAt: timestamp,
+          uploadId,
+          category: "thumbs"
+        }
+      });
+
+      thumbIndex += 1;
+    }
+
     saved.push({
       key,
+      thumbKey,
       originalName: file.name,
       size: file.size,
       type: mimeType,
@@ -171,6 +200,7 @@ async function listMessages(request, env) {
 async function listGallery(request, env) {
   const submissions = await readAllSubmissionRecords(env);
   const photos = [];
+  const origin = new URL(request.url).origin;
 
   for (const item of submissions) {
     const files = Array.isArray(item.data.files) ? item.data.files : [];
@@ -184,7 +214,10 @@ async function listGallery(request, env) {
           guestName: item.data.guestName || "",
           originalName: file.originalName || "",
           key: file.key,
-          url: `${new URL(request.url).origin}/api/media/${encodeURIComponent(file.key)}`
+          url: `${origin}/api/media/${encodeURIComponent(file.key)}`,
+          thumbUrl: file.thumbKey
+            ? `${origin}/api/media/${encodeURIComponent(file.thumbKey)}`
+            : `${origin}/api/media/${encodeURIComponent(file.key)}`
         });
       }
     }
@@ -197,6 +230,7 @@ async function listGallery(request, env) {
 async function listVideos(request, env) {
   const submissions = await readAllSubmissionRecords(env);
   const videos = [];
+  const origin = new URL(request.url).origin;
 
   for (const item of submissions) {
     const files = Array.isArray(item.data.files) ? item.data.files : [];
@@ -210,7 +244,7 @@ async function listVideos(request, env) {
           guestName: item.data.guestName || "",
           originalName: file.originalName || "",
           key: file.key,
-          url: `${new URL(request.url).origin}/api/media/${encodeURIComponent(file.key)}`
+          url: `${origin}/api/media/${encodeURIComponent(file.key)}`
         });
       }
     }
@@ -352,9 +386,8 @@ async function adminDeleteSubmission(request, env) {
 
   const files = Array.isArray(record.data.files) ? record.data.files : [];
   for (const file of files) {
-    if (file.key) {
-      await env.WEDDING_UPLOADS.delete(file.key);
-    }
+    if (file.key) await env.WEDDING_UPLOADS.delete(file.key);
+    if (file.thumbKey) await env.WEDDING_UPLOADS.delete(file.thumbKey);
   }
 
   await env.WEDDING_UPLOADS.delete(record.metadataKey);
@@ -381,9 +414,13 @@ async function adminDeleteMedia(request, env) {
   }
 
   const files = Array.isArray(record.data.files) ? record.data.files : [];
+  const target = files.find(file => file.key === key);
   const remaining = files.filter(file => file.key !== key);
 
   await env.WEDDING_UPLOADS.delete(key);
+  if (target?.thumbKey) {
+    await env.WEDDING_UPLOADS.delete(target.thumbKey);
+  }
 
   record.data.files = remaining;
   record.data.hasFiles = remaining.length > 0;
@@ -403,7 +440,9 @@ async function adminBulkDelete(request, env) {
   }
 
   const body = await request.json().catch(() => ({}));
-  const uploadIds = Array.isArray(body.uploadIds) ? body.uploadIds.map(v => String(v || "").trim()).filter(Boolean) : [];
+  const uploadIds = Array.isArray(body.uploadIds)
+    ? body.uploadIds.map(v => String(v || "").trim()).filter(Boolean)
+    : [];
 
   if (!uploadIds.length) {
     return json({ error: "No uploadIds supplied" }, 400, request);
@@ -415,9 +454,8 @@ async function adminBulkDelete(request, env) {
 
     const files = Array.isArray(record.data.files) ? record.data.files : [];
     for (const file of files) {
-      if (file.key) {
-        await env.WEDDING_UPLOADS.delete(file.key);
-      }
+      if (file.key) await env.WEDDING_UPLOADS.delete(file.key);
+      if (file.thumbKey) await env.WEDDING_UPLOADS.delete(file.thumbKey);
     }
 
     await env.WEDDING_UPLOADS.delete(record.metadataKey);
