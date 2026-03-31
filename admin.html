@@ -63,4 +63,304 @@
 
     function escapeHtml(str = "") {
       return String(str)
-        .replaceAll("&",
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function formatDate(dateString) {
+      const d = new Date(dateString);
+      if (isNaN(d)) return "";
+      return d.toLocaleString();
+    }
+
+    async function checkAuth() {
+      const res = await fetch(API + "/admin/check", {
+        credentials: "include"
+      });
+      return res.ok;
+    }
+
+    async function login(password) {
+      const res = await fetch(API + "/admin/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ password })
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Login failed");
+      return data;
+    }
+
+    async function logout() {
+      await fetch(API + "/admin/logout", {
+        method: "POST",
+        credentials: "include"
+      });
+    }
+
+    async function fetchAdminList() {
+      const res = await fetch(API + "/admin/list", {
+        credentials: "include"
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Could not load admin list");
+      return data;
+    }
+
+    async function deleteMessage(uploadId) {
+      const res = await fetch(API + "/admin/delete-message", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ uploadId })
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Could not delete message");
+      return data;
+    }
+
+    async function deleteSubmission(uploadId) {
+      const res = await fetch(API + "/admin/delete-submission", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ uploadId })
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Could not delete submission");
+      return data;
+    }
+
+    async function deleteMedia(uploadId, key) {
+      const res = await fetch(API + "/admin/delete-media", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ uploadId, key })
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Could not delete media");
+      return data;
+    }
+
+    async function bulkDelete(uploadIds) {
+      const res = await fetch(API + "/admin/bulk-delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ uploadIds })
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Could not bulk delete");
+      return data;
+    }
+
+    function showAdmin() {
+      loginPanel.style.display = "none";
+      adminPanel.style.display = "block";
+    }
+
+    function showLogin() {
+      loginPanel.style.display = "block";
+      adminPanel.style.display = "none";
+    }
+
+    function wireAdminButtons() {
+      document.querySelectorAll(".delete-message-btn").forEach(btn => {
+        btn.addEventListener("click", async () => {
+          const uploadId = btn.dataset.uploadId;
+          if (!confirm("Delete the message text only? Files will be kept.")) return;
+
+          try {
+            await deleteMessage(uploadId);
+            await loadAdminList();
+          } catch (err) {
+            alert(err.message || "Delete failed");
+          }
+        });
+      });
+
+      document.querySelectorAll(".delete-submission-btn").forEach(btn => {
+        btn.addEventListener("click", async () => {
+          const uploadId = btn.dataset.uploadId;
+          if (!confirm("Delete this whole submission? This will remove message and files.")) return;
+
+          try {
+            await deleteSubmission(uploadId);
+            await loadAdminList();
+          } catch (err) {
+            alert(err.message || "Delete failed");
+          }
+        });
+      });
+
+      document.querySelectorAll(".delete-media-btn").forEach(btn => {
+        btn.addEventListener("click", async () => {
+          const uploadId = btn.dataset.uploadId;
+          const key = btn.dataset.key;
+          if (!confirm("Delete this file?")) return;
+
+          try {
+            await deleteMedia(uploadId, key);
+            await loadAdminList();
+          } catch (err) {
+            alert(err.message || "Delete failed");
+          }
+        });
+      });
+    }
+
+    async function loadAdminList() {
+      adminList.innerHTML = "";
+      adminEmpty.style.display = "none";
+      adminSummary.textContent = "Loading…";
+
+      const data = await fetchAdminList();
+      const submissions = data.submissions || [];
+
+      adminSummary.textContent = `${submissions.length} submission(s)`;
+
+      if (!submissions.length) {
+        adminEmpty.style.display = "block";
+        return;
+      }
+
+      submissions.forEach(sub => {
+        const card = document.createElement("div");
+        card.className = "admin-card";
+
+        const files = Array.isArray(sub.files) ? sub.files : [];
+
+        card.innerHTML = `
+          <div class="admin-card-head">
+            <label class="admin-check">
+              <input type="checkbox" class="submission-check" value="${escapeHtml(sub.uploadId)}" />
+              <span>Select</span>
+            </label>
+
+            <div class="admin-meta">
+              <div><strong>${escapeHtml(sub.guestName || "Guest")}</strong></div>
+              <div>${escapeHtml(formatDate(sub.uploadedAt))}</div>
+              <div>Upload ID: ${escapeHtml(sub.uploadId || "")}</div>
+              ${sub.contact ? `<div>Contact: ${escapeHtml(sub.contact)}</div>` : ""}
+            </div>
+
+            <div class="admin-card-actions">
+              <button class="button secondary-button delete-message-btn" data-upload-id="${escapeHtml(sub.uploadId)}" type="button">Delete message</button>
+              <button class="button danger-button delete-submission-btn" data-upload-id="${escapeHtml(sub.uploadId)}" type="button">Delete submission</button>
+            </div>
+          </div>
+
+          ${sub.message ? `<div class="admin-message">${escapeHtml(sub.message)}</div>` : ""}
+
+          <div class="admin-files">
+            ${files.length ? files.map(file => `
+              <div class="admin-file">
+                <div class="admin-file-info">
+                  <div><strong>${escapeHtml(file.originalName || "File")}</strong></div>
+                  <div>${escapeHtml(file.type || "")}</div>
+                  ${file.thumbKey ? `<div>Thumbnail stored</div>` : ""}
+                  <div class="admin-file-key">${escapeHtml(file.key || "")}</div>
+                </div>
+                <button
+                  class="button danger-button delete-media-btn"
+                  type="button"
+                  data-upload-id="${escapeHtml(sub.uploadId)}"
+                  data-key="${escapeHtml(file.key || "")}">
+                  Delete file
+                </button>
+              </div>
+            `).join("") : `<div class="subtitle">No files attached</div>`}
+          </div>
+        `;
+
+        adminList.appendChild(card);
+      });
+
+      wireAdminButtons();
+    }
+
+    document.getElementById("adminLoginForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      setStatus("", "");
+
+      const password = document.getElementById("adminPassword").value;
+
+      try {
+        await login(password);
+
+        const authed = await checkAuth();
+        if (!authed) {
+          throw new Error("Login cookie was not accepted");
+        }
+
+        showAdmin();
+        await loadAdminList();
+      } catch (err) {
+        showLogin();
+        setStatus("error", err.message || "Login failed");
+      }
+    });
+
+    document.getElementById("refreshBtn").addEventListener("click", async () => {
+      try {
+        await loadAdminList();
+      } catch (err) {
+        alert(err.message || "Refresh failed");
+      }
+    });
+
+    document.getElementById("downloadCsvBtn").addEventListener("click", () => {
+      window.location.href = "/api/export";
+    });
+
+    document.getElementById("logoutBtn").addEventListener("click", async () => {
+      await logout();
+      showLogin();
+    });
+
+    document.getElementById("bulkDeleteBtn").addEventListener("click", async () => {
+      const selected = Array.from(document.querySelectorAll(".submission-check:checked"))
+        .map(el => el.value);
+
+      if (!selected.length) {
+        alert("Select at least one submission first.");
+        return;
+      }
+
+      if (!confirm(`Delete ${selected.length} selected submission(s)? This will remove messages and files.`)) return;
+
+      try {
+        await bulkDelete(selected);
+        await loadAdminList();
+      } catch (err) {
+        alert(err.message || "Bulk delete failed");
+      }
+    });
+
+    (async () => {
+      try {
+        const authed = await checkAuth();
+        if (authed) {
+          showAdmin();
+          await loadAdminList();
+        } else {
+          showLogin();
+        }
+      } catch (_) {
+        showLogin();
+      }
+    })();
+  </script>
+</body>
+</html>
