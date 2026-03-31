@@ -42,6 +42,10 @@ export default {
       return await adminList(request, env);
     }
 
+    if (url.pathname === "/api/admin/delete-message" && request.method === "POST") {
+      return await adminDeleteMessage(request, env);
+    }
+
     if (url.pathname === "/api/admin/delete-submission" && request.method === "POST") {
       return await adminDeleteSubmission(request, env);
     }
@@ -58,21 +62,38 @@ export default {
       return await serveMedia(request, env, url.pathname.substring("/api/media/".length));
     }
 
- if (url.pathname === "/api/admin/delete-message" && request.method === "POST") {
-  return await adminDeleteMessage(request, env);
-}
     return new Response("Not found", { status: 404 });
   }
 };
 
 const MAX_FILE_SIZE = 100 * 1024 * 1024;
 const ALLOWED_EXTENSIONS = [
-  "jpg","jpeg","png","gif","webp","bmp","svg","heic","heif",
-  "mp4","mov","m4v","avi","wmv","webm","mkv","mpeg","mpg","3gp","mts","m2ts","ogv"
+  "jpg", "jpeg", "png", "gif", "webp", "bmp", "svg", "heic", "heif",
+  "mp4", "mov", "m4v", "avi", "wmv", "webm", "mkv", "mpeg", "mpg", "3gp", "mts", "m2ts", "ogv"
 ];
 
 async function handleUpload(request, env) {
   const formData = await request.formData();
+
+  const turnstileToken = String(formData.get("turnstileToken") || "").trim();
+  const remoteIp = request.headers.get("CF-Connecting-IP") || "";
+
+  if (!turnstileToken) {
+    return json({ error: "Please complete the human check." }, 400, request);
+  }
+
+  const turnstileResult = await verifyTurnstileToken(
+    turnstileToken,
+    remoteIp,
+    env.TURNSTILE_SECRET_KEY
+  );
+
+  if (!turnstileResult.success) {
+    return json({
+      error: "Human check failed. Please try again.",
+      codes: turnstileResult["error-codes"] || []
+    }, 400, request);
+  }
 
   const uploads = formData.getAll("media").filter(item => item instanceof File && item.name);
   const thumbs = formData.getAll("thumb").filter(item => item instanceof File && item.name);
@@ -185,7 +206,12 @@ async function listMessages(request, env) {
   const submissions = await readAllSubmissionRecords(env);
 
   const messages = submissions
-    .filter(item => item.data.message || item.data.guestName || item.data.contact || (item.data.files && item.data.files.length))
+    .filter(item =>
+      item.data.message ||
+      item.data.guestName ||
+      item.data.contact ||
+      (item.data.files && item.data.files.length)
+    )
     .sort((a, b) => String(b.data.uploadedAt || "").localeCompare(String(a.data.uploadedAt || "")))
     .map(item => ({
       uploadId: item.data.uploadId || "",
@@ -193,8 +219,12 @@ async function listMessages(request, env) {
       guestName: item.data.guestName || "",
       message: redactSensitiveText(item.data.message || "", item.data.contact || ""),
       filesCount: Array.isArray(item.data.files) ? item.data.files.length : 0,
-      hasPhotos: Array.isArray(item.data.files) ? item.data.files.some(f => String(f.category || "").startsWith("photo")) : false,
-      hasVideos: Array.isArray(item.data.files) ? item.data.files.some(f => String(f.category || "").startsWith("video")) : false
+      hasPhotos: Array.isArray(item.data.files)
+        ? item.data.files.some(f => String(f.category || "").startsWith("photo"))
+        : false,
+      hasVideos: Array.isArray(item.data.files)
+        ? item.data.files.some(f => String(f.category || "").startsWith("video"))
+        : false
     }));
 
   return json({ messages }, 200, request);
@@ -207,9 +237,11 @@ async function listGallery(request, env) {
 
   for (const item of submissions) {
     const files = Array.isArray(item.data.files) ? item.data.files : [];
+
     for (const file of files) {
       const type = String(file.type || "");
       const category = String(file.category || "");
+
       if (type.startsWith("image/") || category === "photos") {
         photos.push({
           uploadId: item.data.uploadId || "",
@@ -237,9 +269,11 @@ async function listVideos(request, env) {
 
   for (const item of submissions) {
     const files = Array.isArray(item.data.files) ? item.data.files : [];
+
     for (const file of files) {
       const type = String(file.type || "");
       const category = String(file.category || "");
+
       if (type.startsWith("video/") || category === "videos") {
         videos.push({
           uploadId: item.data.uploadId || "",
@@ -259,7 +293,7 @@ async function listVideos(request, env) {
 
 async function exportCSV(request, env) {
   const submissions = await readAllSubmissionRecords(env);
-  const rows = [["Upload ID","Date","Name","Contact","Message","Files Count"]];
+  const rows = [["Upload ID", "Date", "Name", "Contact", "Message", "Files Count"]];
 
   for (const item of submissions) {
     rows.push([
@@ -368,6 +402,35 @@ async function adminList(request, env) {
     }));
 
   return json({ submissions: out }, 200, request);
+}
+
+async function adminDeleteMessage(request, env) {
+  if (!(await isAdminAuthenticated(request, env))) {
+    return json({ error: "Unauthorised" }, 401, request);
+  }
+
+  const body = await request.json().catch(() => ({}));
+  const uploadId = String(body.uploadId || "").trim();
+
+  if (!uploadId) {
+    return json({ error: "Missing uploadId" }, 400, request);
+  }
+
+  const record = await findSubmissionByUploadId(env, uploadId);
+  if (!record) {
+    return json({ error: "Submission not found" }, 404, request);
+  }
+
+  record.data.message = "";
+  record.data.contact = "";
+
+  await env.WEDDING_UPLOADS.put(
+    record.metadataKey,
+    JSON.stringify(record.data, null, 2),
+    { httpMetadata: { contentType: "application/json" } }
+  );
+
+  return json({ ok: true }, 200, request);
 }
 
 async function adminDeleteSubmission(request, env) {
@@ -556,8 +619,40 @@ function parseCookies(cookieHeader) {
 
 function toBase64Url(bytes) {
   let binary = "";
-  bytes.forEach(b => binary += String.fromCharCode(b));
+  bytes.forEach(b => {
+    binary += String.fromCharCode(b);
+  });
   return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+}
+
+async function verifyTurnstileToken(token, remoteIp, secret) {
+  if (!secret) {
+    return {
+      success: false,
+      "error-codes": ["missing-input-secret"]
+    };
+  }
+
+  try {
+    const response = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded"
+      },
+      body: new URLSearchParams({
+        secret,
+        response: token,
+        remoteip: remoteIp
+      })
+    });
+
+    return await response.json();
+  } catch {
+    return {
+      success: false,
+      "error-codes": ["internal-error"]
+    };
+  }
 }
 
 /* =========================
@@ -697,33 +792,4 @@ function json(data, status = 200, request = new Request("https://example.com")) 
       ...corsHeaders(request)
     }
   });
-}
-
-async function adminDeleteMessage(request, env) {
-  if (!(await isAdminAuthenticated(request, env))) {
-    return json({ error: "Unauthorised" }, 401, request);
-  }
-
-  const body = await request.json().catch(() => ({}));
-  const uploadId = String(body.uploadId || "").trim();
-
-  if (!uploadId) {
-    return json({ error: "Missing uploadId" }, 400, request);
-  }
-
-  const record = await findSubmissionByUploadId(env, uploadId);
-  if (!record) {
-    return json({ error: "Submission not found" }, 404, request);
-  }
-
-  record.data.message = "";
-  record.data.contact = "";
-
-  await env.WEDDING_UPLOADS.put(
-    record.metadataKey,
-    JSON.stringify(record.data, null, 2),
-    { httpMetadata: { contentType: "application/json" } }
-  );
-
-  return json({ ok: true }, 200, request);
 }
