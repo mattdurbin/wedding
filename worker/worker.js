@@ -58,6 +58,14 @@ export default {
       return await adminBulkDelete(request, env);
     }
 
+    if (url.pathname === "/api/admin/download-photos" && request.method === "GET") {
+      return await adminDownloadMediaByType(request, env, "photos");
+    }
+
+    if (url.pathname === "/api/admin/download-videos" && request.method === "GET") {
+      return await adminDownloadMediaByType(request, env, "videos");
+    }
+
     if (url.pathname.startsWith("/api/media/") && request.method === "GET") {
       return await serveMedia(request, env, url.pathname.substring("/api/media/".length));
     }
@@ -530,6 +538,90 @@ async function adminBulkDelete(request, env) {
   return json({ ok: true, deleted: uploadIds.length }, 200, request);
 }
 
+async function adminDownloadMediaByType(request, env, wantedCategory) {
+  if (!(await isAdminAuthenticated(request, env))) {
+    return json({ error: "Unauthorised" }, 401, request);
+  }
+
+  const submissions = await readAllSubmissionRecords(env);
+
+  if (!submissions.length) {
+    return json({ error: "No files to download" }, 400, request);
+  }
+
+  const zipEntries = [];
+
+  for (const submission of submissions) {
+    const uploadId = submission.data.uploadId || crypto.randomUUID();
+    const guestName = sanitizeFolderName(submission.data.guestName || "guest");
+    const folder = `${uploadId}_${guestName}`.replace(/^_+|_+$/g, "");
+
+    const files = Array.isArray(submission.data.files) ? submission.data.files : [];
+    const matchingFiles = files.filter(file => String(file.category || "") === wantedCategory);
+
+    if (!matchingFiles.length) continue;
+
+    const summaryText =
+`Upload ID: ${submission.data.uploadId || ""}
+Uploaded At: ${submission.data.uploadedAt || ""}
+Guest Name: ${submission.data.guestName || ""}
+Contact: ${submission.data.contact || ""}
+Message:
+${submission.data.message || ""}
+`;
+
+    zipEntries.push({
+      name: `${folder}/submission.txt`,
+      data: new TextEncoder().encode(summaryText)
+    });
+
+    for (const file of matchingFiles) {
+      if (!file.key) continue;
+
+      const object = await env.WEDDING_UPLOADS.get(file.key);
+      if (!object) continue;
+
+      const safeName = sanitizeFileName(file.originalName || file.key.split("/").pop() || "file");
+      const bytes = new Uint8Array(await object.arrayBuffer());
+
+      zipEntries.push({
+        name: `${folder}/${wantedCategory}/${safeName}`,
+        data: bytes
+      });
+
+      if (wantedCategory === "photos" && file.thumbKey) {
+        const thumbObject = await env.WEDDING_UPLOADS.get(file.thumbKey);
+        if (thumbObject) {
+          const thumbName = buildThumbName(safeName);
+          const thumbBytes = new Uint8Array(await thumbObject.arrayBuffer());
+
+          zipEntries.push({
+            name: `${folder}/thumbnails/${thumbName}`,
+            data: thumbBytes
+          });
+        }
+      }
+    }
+  }
+
+  if (!zipEntries.length) {
+    return json({ error: `No ${wantedCategory} found` }, 400, request);
+  }
+
+  const zipBytes = await createZip(zipEntries);
+  const datePart = new Date().toISOString().slice(0, 10);
+  const filename = `wedding-${wantedCategory}-${datePart}.zip`;
+
+  return new Response(zipBytes, {
+    status: 200,
+    headers: {
+      "Content-Type": "application/zip",
+      "Content-Disposition": `attachment; filename="${filename}"`,
+      "Cache-Control": "no-store"
+    }
+  });
+}
+
 async function isAdminAuthenticated(request, env) {
   const cookies = parseCookies(request.headers.get("Cookie") || "");
   const token = cookies.admin_session;
@@ -653,6 +745,142 @@ async function verifyTurnstileToken(token, remoteIp, secret) {
       "error-codes": ["internal-error"]
     };
   }
+}
+
+/* =========================
+   ZIP HELPERS
+========================= */
+
+function sanitizeFileName(name) {
+  return String(name || "file")
+    .replace(/[\/\\?%*:|"<>]/g, "-")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 180) || "file";
+}
+
+function sanitizeFolderName(name) {
+  return String(name || "guest")
+    .replace(/[\/\\?%*:|"<>]/g, "-")
+    .replace(/\s+/g, "_")
+    .trim()
+    .slice(0, 80) || "guest";
+}
+
+function buildThumbName(originalName) {
+  const dot = originalName.lastIndexOf(".");
+  if (dot === -1) return `${originalName}_thumb.jpg`;
+  return `${originalName.slice(0, dot)}_thumb${originalName.slice(dot)}`;
+}
+
+async function createZip(entries) {
+  const encoder = new TextEncoder();
+  const localParts = [];
+  const centralParts = [];
+  let offset = 0;
+
+  for (const entry of entries) {
+    const nameBytes = encoder.encode(entry.name);
+    const data = entry.data instanceof Uint8Array ? entry.data : new Uint8Array(entry.data);
+    const crc = crc32(data);
+
+    const localHeader = new Uint8Array(30);
+    const localView = new DataView(localHeader.buffer);
+
+    localView.setUint32(0, 0x04034b50, true);
+    localView.setUint16(4, 20, true);
+    localView.setUint16(6, 0, true);
+    localView.setUint16(8, 0, true);
+    localView.setUint16(10, 0, true);
+    localView.setUint16(12, 0, true);
+    localView.setUint32(14, crc, true);
+    localView.setUint32(18, data.length, true);
+    localView.setUint32(22, data.length, true);
+    localView.setUint16(26, nameBytes.length, true);
+    localView.setUint16(28, 0, true);
+
+    localParts.push(localHeader, nameBytes, data);
+
+    const centralHeader = new Uint8Array(46);
+    const centralView = new DataView(centralHeader.buffer);
+
+    centralView.setUint32(0, 0x02014b50, true);
+    centralView.setUint16(4, 20, true);
+    centralView.setUint16(6, 20, true);
+    centralView.setUint16(8, 0, true);
+    centralView.setUint16(10, 0, true);
+    centralView.setUint16(12, 0, true);
+    centralView.setUint16(14, 0, true);
+    centralView.setUint32(16, crc, true);
+    centralView.setUint32(20, data.length, true);
+    centralView.setUint32(24, data.length, true);
+    centralView.setUint16(28, nameBytes.length, true);
+    centralView.setUint16(30, 0, true);
+    centralView.setUint16(32, 0, true);
+    centralView.setUint16(34, 0, true);
+    centralView.setUint16(36, 0, true);
+    centralView.setUint32(38, 0, true);
+    centralView.setUint32(42, offset, true);
+
+    centralParts.push(centralHeader, nameBytes);
+
+    offset += localHeader.length + nameBytes.length + data.length;
+  }
+
+  const centralSize = centralParts.reduce((sum, part) => sum + part.length, 0);
+
+  const endRecord = new Uint8Array(22);
+  const endView = new DataView(endRecord.buffer);
+
+  endView.setUint32(0, 0x06054b50, true);
+  endView.setUint16(4, 0, true);
+  endView.setUint16(6, 0, true);
+  endView.setUint16(8, entries.length, true);
+  endView.setUint16(10, entries.length, true);
+  endView.setUint32(12, centralSize, true);
+  endView.setUint32(16, offset, true);
+  endView.setUint16(20, 0, true);
+
+  const totalLength =
+    localParts.reduce((sum, part) => sum + part.length, 0) +
+    centralSize +
+    endRecord.length;
+
+  const zip = new Uint8Array(totalLength);
+  let pointer = 0;
+
+  for (const part of localParts) {
+    zip.set(part, pointer);
+    pointer += part.length;
+  }
+
+  for (const part of centralParts) {
+    zip.set(part, pointer);
+    pointer += part.length;
+  }
+
+  zip.set(endRecord, pointer);
+  return zip;
+}
+
+const CRC_TABLE = (() => {
+  const table = new Uint32Array(256);
+  for (let n = 0; n < 256; n++) {
+    let c = n;
+    for (let k = 0; k < 8; k++) {
+      c = (c & 1) ? (0xedb88320 ^ (c >>> 1)) : (c >>> 1);
+    }
+    table[n] = c >>> 0;
+  }
+  return table;
+})();
+
+function crc32(bytes) {
+  let crc = 0 ^ -1;
+  for (let i = 0; i < bytes.length; i++) {
+    crc = (crc >>> 8) ^ CRC_TABLE[(crc ^ bytes[i]) & 0xff];
+  }
+  return (crc ^ -1) >>> 0;
 }
 
 /* =========================
