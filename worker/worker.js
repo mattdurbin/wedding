@@ -54,8 +54,8 @@ export default {
       return await adminBulkDelete(request, env);
     }
 
-    if (url.pathname.startsWith("/media/") && request.method === "GET") {
-      return await serveMedia(request, env, url.pathname.substring("/media/".length));
+    if (url.pathname.startsWith("/api/media/") && request.method === "GET") {
+      return await serveMedia(request, env, url.pathname.substring("/api/media/".length));
     }
 
     return new Response("Not found", { status: 404 });
@@ -184,7 +184,7 @@ async function listGallery(request, env) {
           guestName: item.data.guestName || "",
           originalName: file.originalName || "",
           key: file.key,
-          url: `${new URL(request.url).origin}/media/${encodeURIComponent(file.key)}`
+          url: `${new URL(request.url).origin}/api/media/${encodeURIComponent(file.key)}`
         });
       }
     }
@@ -210,7 +210,7 @@ async function listVideos(request, env) {
           guestName: item.data.guestName || "",
           originalName: file.originalName || "",
           key: file.key,
-          url: `${new URL(request.url).origin}/media/${encodeURIComponent(file.key)}`
+          url: `${new URL(request.url).origin}/api/media/${encodeURIComponent(file.key)}`
         });
       }
     }
