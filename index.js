@@ -13,6 +13,13 @@ const progressBar = document.getElementById("progressBar");
 const progressText = document.getElementById("progressText");
 const uploadMessage = document.getElementById("uploadMessage");
 
+let selectedFiles = [];
+
+const IMAGE_MAX_DIMENSION = 2000;
+const IMAGE_QUALITY = 0.82;
+const THUMB_MAX_DIMENSION = 400;
+const THUMB_QUALITY = 0.75;
+
 function setStatus(type, msg) {
   status.className = "status " + type;
   status.textContent = msg;
@@ -25,6 +32,7 @@ function clearStatus() {
 
 function openUploadModal() {
   uploadModal.setAttribute("aria-hidden", "false");
+  uploadModal.classList.add("open");
   document.body.classList.add("modal-open");
   progressBar.style.width = "0%";
   progressText.textContent = "0%";
@@ -33,12 +41,129 @@ function openUploadModal() {
 
 function closeUploadModal() {
   uploadModal.setAttribute("aria-hidden", "true");
+  uploadModal.classList.remove("open");
   document.body.classList.remove("modal-open");
 }
 
 function formatFileSize(bytes) {
   if (bytes < 1024 * 1024) return Math.round(bytes / 1024) + " KB";
   return (bytes / (1024 * 1024)).toFixed(1) + " MB";
+}
+
+function isImageFile(file) {
+  return file.type.startsWith("image/");
+}
+
+function isVideoFile(file) {
+  return file.type.startsWith("video/");
+}
+
+function getOutputImageType() {
+  return "image/jpeg";
+}
+
+function getCompressedFilename(file, suffix = "") {
+  const original = file.name.replace(/\.[^.]+$/, "");
+  return `${original}${suffix}.jpg`;
+}
+
+function readFileAsDataURL(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(new Error(`Could not read ${file.name}`));
+    reader.readAsDataURL(file);
+  });
+}
+
+function loadImage(file) {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const dataUrl = await readFileAsDataURL(file);
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = () => reject(new Error(`Could not load image ${file.name}`));
+      img.src = dataUrl;
+    } catch (err) {
+      reject(err);
+    }
+  });
+}
+
+function fitDimensions(width, height, maxDimension) {
+  let w = width;
+  let h = height;
+
+  if (w > h) {
+    if (w > maxDimension) {
+      h = Math.round((h * maxDimension) / w);
+      w = maxDimension;
+    }
+  } else {
+    if (h > maxDimension) {
+      w = Math.round((w * maxDimension) / h);
+      h = maxDimension;
+    }
+  }
+
+  return { width: w, height: h };
+}
+
+async function renderImageToFile(file, maxDimension, quality, suffix = "") {
+  const img = await loadImage(file);
+  const { width, height } = fitDimensions(img.width, img.height, maxDimension);
+
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+
+  const ctx = canvas.getContext("2d");
+  ctx.drawImage(img, 0, 0, width, height);
+
+  const outputType = getOutputImageType(file);
+
+  const blob = await new Promise((resolve) => {
+    canvas.toBlob(resolve, outputType, quality);
+  });
+
+  if (!blob) {
+    throw new Error(`Could not process ${file.name}`);
+  }
+
+  return new File(
+    [blob],
+    getCompressedFilename(file, suffix),
+    { type: outputType, lastModified: Date.now() }
+  );
+}
+
+async function compressImage(file) {
+  return renderImageToFile(file, IMAGE_MAX_DIMENSION, IMAGE_QUALITY, "");
+}
+
+async function createThumbnail(file) {
+  return renderImageToFile(file, THUMB_MAX_DIMENSION, THUMB_QUALITY, "_thumb");
+}
+
+async function prepareFiles(files) {
+  const prepared = [];
+
+  for (const file of Array.from(files)) {
+    if (isImageFile(file)) {
+      try {
+        const compressed = await compressImage(file);
+        const thumb = await createThumbnail(file);
+        compressed._thumbnail = thumb;
+        prepared.push(compressed);
+      } catch (_) {
+        prepared.push(file);
+      }
+    } else {
+      prepared.push(file);
+    }
+  }
+
+  return prepared;
 }
 
 function previewFiles(files) {
@@ -57,14 +182,14 @@ function previewFiles(files) {
 
     let media;
 
-    if (file.type.startsWith("image/")) {
+    if (isImageFile(file)) {
       media = document.createElement("img");
       const reader = new FileReader();
       reader.onload = (e) => {
         media.src = e.target.result;
       };
       reader.readAsDataURL(file);
-    } else if (file.type.startsWith("video/")) {
+    } else if (isVideoFile(file)) {
       media = document.createElement("video");
       media.src = URL.createObjectURL(file);
       media.muted = true;
@@ -85,15 +210,13 @@ function previewFiles(files) {
   });
 }
 
-function setFiles(files) {
-  const dt = new DataTransfer();
-  Array.from(files).forEach((file) => dt.items.add(file));
-  input.files = dt.files;
-  previewFiles(input.files);
+async function setFiles(files) {
+  selectedFiles = await prepareFiles(files);
+  previewFiles(selectedFiles);
 }
 
-input.addEventListener("change", () => {
-  previewFiles(input.files);
+input.addEventListener("change", async () => {
+  await setFiles(input.files);
 });
 
 dropzone.addEventListener("click", () => input.click());
@@ -114,17 +237,17 @@ dropzone.addEventListener("dragleave", () => {
   dropzone.classList.remove("dragover");
 });
 
-dropzone.addEventListener("drop", (e) => {
+dropzone.addEventListener("drop", async (e) => {
   e.preventDefault();
   dropzone.classList.remove("dragover");
-  setFiles(e.dataTransfer.files);
+  await setFiles(e.dataTransfer.files);
 });
 
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
   clearStatus();
 
-  const files = input.files;
+  const files = selectedFiles;
   const message = document.getElementById("message").value.trim();
   const guestName = document.getElementById("guestName").value.trim();
   const contact = document.getElementById("contact").value.trim();
@@ -135,7 +258,14 @@ form.addEventListener("submit", async (e) => {
   }
 
   const data = new FormData();
-  Array.from(files).forEach((f) => data.append("media", f));
+
+  files.forEach((f) => {
+    data.append("media", f);
+    if (f._thumbnail) {
+      data.append("thumb", f._thumbnail);
+    }
+  });
+
   data.append("guestName", guestName);
   data.append("contact", contact);
   data.append("message", message);
@@ -154,6 +284,7 @@ form.addEventListener("submit", async (e) => {
     });
 
     form.reset();
+    selectedFiles = [];
     previews.innerHTML = "";
     selection.textContent = "No files selected";
     setStatus("success", result.message || "Thank you! 💛");
@@ -178,15 +309,17 @@ function uploadWithProgress(url, formData, onProgress) {
     });
 
     xhr.addEventListener("load", () => {
+      const raw = xhr.responseText || "";
+
       let response = {};
       try {
-        response = JSON.parse(xhr.responseText || "{}");
+        response = JSON.parse(raw);
       } catch (_) {}
 
       if (xhr.status >= 200 && xhr.status < 300) {
         resolve(response);
       } else {
-        reject(new Error(response.error || "Upload failed"));
+        reject(new Error(response.error || raw || `Upload failed (${xhr.status})`));
       }
     });
 
@@ -195,37 +328,5 @@ function uploadWithProgress(url, formData, onProgress) {
     });
 
     xhr.send(formData);
-  });
-}
-
- async function createThumbnail(file) {
-  const img = await loadImage(file);
-
-  const maxSize = 400;
-
-  let width = img.width;
-  let height = img.height;
-
-  if (width > height) {
-    height = Math.round((height * maxSize) / width);
-    width = maxSize;
-  } else {
-    width = Math.round((width * maxSize) / height);
-    height = maxSize;
-  }
-
-  const canvas = document.createElement("canvas");
-  canvas.width = width;
-  canvas.height = height;
-
-  const ctx = canvas.getContext("2d");
-  ctx.drawImage(img, 0, 0, width, height);
-
-  const blob = await new Promise((resolve) =>
-    canvas.toBlob(resolve, "image/jpeg", 0.75)
-  );
-
-  return new File([blob], file.name.replace(/\.[^.]+$/, "_thumb.jpg"), {
-    type: "image/jpeg"
   });
 }
