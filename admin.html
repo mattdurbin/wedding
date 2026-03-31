@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Admin | Kimberley & Matthew</title>
-  <link rel="stylesheet" href="styles.css?v=10">
+  <link rel="stylesheet" href="styles.css?v=11">
 </head>
 <body>
 
@@ -36,6 +36,8 @@
         <div class="admin-actions">
           <button id="refreshBtn" class="button" type="button">Refresh</button>
           <button id="downloadCsvBtn" class="button" type="button">Download CSV</button>
+          <button id="downloadPhotosZipBtn" class="button" type="button">Download Photos ZIP</button>
+          <button id="downloadVideosZipBtn" class="button" type="button">Download Videos ZIP</button>
           <button id="bulkDeleteBtn" class="button danger-button" type="button">Delete selected</button>
           <button id="logoutBtn" class="button secondary-button" type="button">Log out</button>
         </div>
@@ -322,6 +324,14 @@
 
     document.getElementById("downloadCsvBtn").addEventListener("click", () => {
       window.location.href = "/api/export";
+    });
+
+    document.getElementById("downloadPhotosZipBtn").addEventListener("click", () => {
+      window.location.href = "/api/admin/download-photos";
+    });
+
+    document.getElementById("downloadVideosZipBtn").addEventListener("click", () => {
+      window.location.href = "/api/admin/download-videos";
     });
 
     document.getElementById("logoutBtn").addEventListener("click", async () => {
