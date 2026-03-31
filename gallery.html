@@ -57,14 +57,21 @@
     <div class="lightbox-content">
       <button id="lightboxClose" class="lightbox-close" type="button" aria-label="Close">×</button>
       <button id="lightboxPrev" class="lightbox-prev" type="button" aria-label="Previous">‹</button>
-      <div id="lightboxMediaWrap"></div>
+
+      <div>
+        <div id="lightboxMediaWrap"></div>
+        <div id="lightboxCaption" class="lightbox-caption"></div>
+        <div class="lightbox-actions">
+          <a id="downloadFullBtn" class="download-button" href="#" download>Download full image</a>
+        </div>
+      </div>
+
       <button id="lightboxNext" class="lightbox-next" type="button" aria-label="Next">›</button>
-      <div id="lightboxCaption" class="lightbox-caption"></div>
     </div>
   </div>
 
   <script>
-   const API = "/api";
+    const API = "/api";
     const PAGE_SIZE = 12;
     const FEATURED_COUNT = 4;
 
@@ -81,6 +88,7 @@
     const lightboxClose = document.getElementById("lightboxClose");
     const lightboxPrev = document.getElementById("lightboxPrev");
     const lightboxNext = document.getElementById("lightboxNext");
+    const downloadFullBtn = document.getElementById("downloadFullBtn");
 
     let allItems = [];
     let visibleCount = PAGE_SIZE;
@@ -131,12 +139,37 @@
       return items.slice(0, FEATURED_COUNT);
     }
 
+    function createThumb(item) {
+      const wrap = document.createElement("div");
+      wrap.className = "media-thumb-wrap";
+
+      let media;
+      if (item.mediaType === "video") {
+        media = document.createElement("video");
+        media.src = item.url;
+        media.muted = true;
+        media.playsInline = true;
+        media.preload = "metadata";
+      } else {
+        media = document.createElement("img");
+        media.src = item.url;
+        media.alt = item.originalName || "Wedding upload";
+        media.loading = "lazy";
+      }
+
+      media.className = "media-thumb";
+      media.addEventListener("click", () => openLightboxByItem(item));
+
+      wrap.appendChild(media);
+      return wrap;
+    }
+
     function renderFeatured(items) {
       featuredGrid.innerHTML = "";
       const featured = pickFeatured(items);
 
       if (!featured.length) {
-        featuredGrid.innerHTML = '<div class="empty-state">No featured uploads yet.</div>';
+        featuredGrid.innerHTML = '<div class="empty-state show">No featured uploads yet.</div>';
         return;
       }
 
@@ -148,21 +181,7 @@
         badge.className = "featured-badge";
         badge.textContent = item.mediaType === "video" ? "Featured video" : "Featured photo";
 
-        let media;
-        if (item.mediaType === "video") {
-          media = document.createElement("video");
-          media.src = item.url;
-          media.muted = true;
-          media.playsInline = true;
-          media.preload = "metadata";
-        } else {
-          media = document.createElement("img");
-          media.src = item.url;
-          media.alt = item.originalName || "Wedding upload";
-          media.loading = "lazy";
-        }
-
-        media.addEventListener("click", () => openLightboxByItem(item));
+        const thumb = createThumb(item);
 
         const meta = document.createElement("div");
         meta.className = "featured-meta";
@@ -172,7 +191,7 @@
         `;
 
         card.appendChild(badge);
-        card.appendChild(media);
+        card.appendChild(thumb);
         card.appendChild(meta);
         featuredGrid.appendChild(card);
       });
@@ -182,12 +201,12 @@
       galleryGrid.innerHTML = "";
 
       if (!items.length) {
-        emptyState.classList.remove("hidden");
+        emptyState.classList.add("show");
         loadMoreBtn.classList.add("hidden");
         return;
       }
 
-      emptyState.classList.add("hidden");
+      emptyState.classList.remove("show");
 
       const featuredKeys = new Set(pickFeatured(items).map(item => item.url));
       const nonFeatured = items.filter(item => !featuredKeys.has(item.url));
@@ -201,21 +220,7 @@
         typeBadge.className = "media-type-badge";
         typeBadge.textContent = item.mediaType === "video" ? "Video" : "Photo";
 
-        let media;
-        if (item.mediaType === "video") {
-          media = document.createElement("video");
-          media.src = item.url;
-          media.muted = true;
-          media.playsInline = true;
-          media.preload = "metadata";
-        } else {
-          media = document.createElement("img");
-          media.src = item.url;
-          media.alt = item.originalName || "Wedding upload";
-          media.loading = "lazy";
-        }
-
-        media.addEventListener("click", () => openLightboxByItem(item));
+        const thumb = createThumb(item);
 
         const meta = document.createElement("div");
         meta.className = "media-meta";
@@ -225,7 +230,7 @@
         `;
 
         card.appendChild(typeBadge);
-        card.appendChild(media);
+        card.appendChild(thumb);
         card.appendChild(meta);
         galleryGrid.appendChild(card);
       });
@@ -273,12 +278,17 @@
         media.controls = true;
         media.autoplay = true;
         media.playsInline = true;
+        downloadFullBtn.textContent = "Download full video";
       } else {
         media = document.createElement("img");
         media.src = item.url;
         media.alt = item.originalName || "Wedding upload";
         media.className = "lightbox-media";
+        downloadFullBtn.textContent = "Download full image";
       }
+
+      downloadFullBtn.href = item.url;
+      downloadFullBtn.setAttribute("download", item.originalName || "download");
 
       lightboxMediaWrap.appendChild(media);
       lightboxCaption.textContent =
