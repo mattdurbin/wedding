@@ -19,7 +19,7 @@
   ],
   "secrets": {
     "required": [
-      "TURNSTILE_SECRET_KEY",
+      "TURNSTILE_SECRET",
       "ADMIN_PASSWORD",
       "ADMIN_SESSION_SECRET"
     ]
