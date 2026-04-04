@@ -2,6 +2,12 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
 
+if (url.pathname === "/api/admin/debug-turnstile" && request.method === "GET") {
+  return json({
+    hasTurnstileSecret: !!env.TURNSTILE_SECRET_KEY
+  }, 200, request);
+}
+
     if (request.method === "OPTIONS") {
       return new Response(null, { headers: corsHeaders(request) });
     }
