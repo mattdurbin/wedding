@@ -6,8 +6,6 @@
   <title>Kimberley & Matthew</title>
 
   <link rel="stylesheet" href="styles.css?v=12">
-
-  <!-- Cloudflare Turnstile -->
   <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
 </head>
 <body>
@@ -45,7 +43,6 @@
       </p>
 
       <form id="uploadForm">
-
         <input id="mediaFiles" type="file" accept="image/*,video/*" multiple />
 
         <div id="dropzone" class="dropzone" role="button" tabindex="0">
@@ -56,27 +53,13 @@
         </div>
 
         <div class="fields">
-          <input
-            id="guestName"
-            type="text"
-            placeholder="Your name (optional)"
-          />
-
-          <input
-            id="contact"
-            type="text"
-            placeholder="Email or phone (optional)"
-          />
-
-          <textarea
-            id="message"
-            placeholder="Leave us a message 💛"
-          ></textarea>
+          <input id="guestName" type="text" placeholder="Your name (optional)" />
+          <input id="contact" type="text" placeholder="Email or phone (optional)" />
+          <textarea id="message" placeholder="Leave us a message 💛"></textarea>
         </div>
 
         <div id="previews" class="previews"></div>
 
-        <!-- TURNSTILE -->
         <div style="margin-top:16px;">
           <div
             class="cf-turnstile"
@@ -98,15 +81,12 @@
     <div class="footer">
       Thank you for being part of our day 💛
     </div>
-
   </main>
 
-  <!-- Upload Modal -->
   <div id="uploadModal" class="upload-modal" aria-hidden="true">
     <div class="upload-dialog">
       <div class="upload-flourish">💛</div>
       <h3>Sending your memories</h3>
-
       <p id="uploadMessage">
         Please keep this page open while we upload everything safely.
       </p>
@@ -127,8 +107,6 @@
     </div>
   </div>
 
-  <!-- Your JS -->
   <script src="index.js?v=12"></script>
-
 </body>
 </html>
