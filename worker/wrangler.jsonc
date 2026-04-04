@@ -1,8 +1,10 @@
 {
+  "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "wedding-photo-upload",
   "main": "worker.js",
   "compatibility_date": "2026-03-30",
   "workers_dev": true,
+  "keep_vars": true,
   "routes": [
     {
       "pattern": "wedding.durbin.uk/api/*",
@@ -14,5 +16,12 @@
       "binding": "WEDDING_UPLOADS",
       "bucket_name": "wedding-uploads"
     }
-  ]
+  ],
+  "secrets": {
+    "required": [
+      "TURNSTILE_SECRET_KEY",
+      "ADMIN_PASSWORD",
+      "ADMIN_SESSION_SECRET"
+    ]
+  }
 }
