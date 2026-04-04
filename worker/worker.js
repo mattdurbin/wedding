@@ -2,6 +2,7 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
 
+
     if (request.method === "OPTIONS") {
       return new Response(null, { headers: corsHeaders(request) });
     }
