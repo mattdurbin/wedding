@@ -9,6 +9,12 @@ export default {
     if (url.pathname === "/api/upload" && request.method === "POST") {
       return await handleUpload(request, env);
     }
+    
+    if (url.pathname === "/api/admin/debug-turnstile" && request.method === "GET") {
+  return json({
+    hasTurnstileSecret: !!env.TURNSTILE_SECRET
+  }, 200, request);
+}
 
     if (url.pathname === "/api/messages" && request.method === "GET") {
       return await listMessages(request, env);
