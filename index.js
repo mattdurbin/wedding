@@ -271,7 +271,8 @@ form.addEventListener("submit", async (e) => {
   }
 
   if (!turnstileToken) {
-    setStatus("error", "Please complete the human check");
+    resetTurnstile();
+    setStatus("error", "Please complete the human check again, then press Send.");
     return;
   }
 
