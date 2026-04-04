@@ -97,9 +97,10 @@ async function handleUpload(request, env) {
   );
 
   if (!turnstileResult.success) {
+    const codes = turnstileResult["error-codes"] || [];
     return json({
-      error: "Human check failed. Please try again.",
-      codes: turnstileResult["error-codes"] || []
+      error: `Human check failed: ${codes.join(", ") || "unknown-error"}`,
+      codes
     }, 400, request);
   }
 
