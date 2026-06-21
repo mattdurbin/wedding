@@ -410,3 +410,19 @@ function corsHeaders(request) {
     "Access-Control-Allow-Headers": "Content-Type"
   };
 }
+
+function sanitizeFileName(name) {
+  return String(name || "file")
+    .replace(/[\/\\?%*:|"<>]/g, "-")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 180) || "file";
+}
+
+function sanitizeFolderName(name) {
+  return String(name || "guest")
+    .replace(/[\/\\?%*:|"<>]/g, "-")
+    .replace(/\s+/g, "_")
+    .trim()
+    .slice(0, 80) || "guest";
+}
