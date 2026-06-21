@@ -278,8 +278,70 @@ async function adminBulkDelete(request, env) {
    ZIP DOWNLOAD
 ========================= */
 
-async function adminDownloadMediaByType(request, env, type) {
-  return new Response("Zip coming next step 😉");
+async function adminDownloadMediaByType(request, env, wantedCategory) {
+  if (!(await isAdminAuthenticated(request, env))) {
+    return json({ error: "Unauthorised" }, 401, request);
+  }
+
+  const submissions = await readAllSubmissionRecords(env);
+  const zipEntries = [];
+
+  for (const submission of submissions) {
+    const uploadId = submission.data.uploadId || "unknown";
+    const guestName = sanitizeFolderName(submission.data.guestName || "guest");
+    const folder = `${uploadId}_${guestName}`;
+
+    const files = Array.isArray(submission.data.files) ? submission.data.files : [];
+    const matchingFiles = files.filter(file => String(file.category || "") === wantedCategory);
+
+    if (!matchingFiles.length) continue;
+
+    const summaryText =
+`Upload ID: ${submission.data.uploadId || ""}
+Uploaded At: ${submission.data.uploadedAt || ""}
+Guest Name: ${submission.data.guestName || ""}
+Contact: ${submission.data.contact || ""}
+Message:
+${submission.data.message || ""}
+`;
+
+    zipEntries.push({
+      name: `${folder}/submission.txt`,
+      data: new TextEncoder().encode(summaryText)
+    });
+
+    for (const file of matchingFiles) {
+      if (!file.key) continue;
+
+      const object = await env.WEDDING_UPLOADS.get(file.key);
+      if (!object) continue;
+
+      const safeName = sanitizeFileName(file.originalName || file.key.split("/").pop() || "file");
+      const bytes = new Uint8Array(await object.arrayBuffer());
+
+      zipEntries.push({
+        name: `${folder}/${wantedCategory}/${safeName}`,
+        data: bytes
+      });
+    }
+  }
+
+  if (!zipEntries.length) {
+    return json({ error: `No ${wantedCategory} found` }, 400, request);
+  }
+
+  const zipBytes = await createZip(zipEntries);
+  const datePart = new Date().toISOString().slice(0, 10);
+  const filename = `wedding-${wantedCategory}-${datePart}.zip`;
+
+  return new Response(zipBytes, {
+    status: 200,
+    headers: {
+      "Content-Type": "application/zip",
+      "Content-Disposition": `attachment; filename="${filename}"`,
+      "Cache-Control": "no-store"
+    }
+  });
 }
 
 /* =========================
