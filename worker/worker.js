@@ -279,30 +279,26 @@ async function adminBulkDelete(request, env) {
 ========================= */
 
 async function adminDownloadMediaByType(request, env, wantedCategory) {
-  if (!(await isAdminAuthenticated(request, env))) {
-    return json({ error: "Unauthorised" }, 401, request);
-  }
-
-  const submissions = await readAllSubmissionRecords(env);
+  const submissions = await readAll(env);
   const zipEntries = [];
 
   for (const submission of submissions) {
-    const uploadId = submission.data.uploadId || "unknown";
-    const guestName = sanitizeFolderName(submission.data.guestName || "guest");
+    const uploadId = submission.uploadId || "unknown";
+    const guestName = sanitizeFolderName(submission.guestName || "guest");
     const folder = `${uploadId}_${guestName}`;
 
-    const files = Array.isArray(submission.data.files) ? submission.data.files : [];
+    const files = Array.isArray(submission.files) ? submission.files : [];
     const matchingFiles = files.filter(file => String(file.category || "") === wantedCategory);
 
     if (!matchingFiles.length) continue;
 
     const summaryText =
-`Upload ID: ${submission.data.uploadId || ""}
-Uploaded At: ${submission.data.uploadedAt || ""}
-Guest Name: ${submission.data.guestName || ""}
-Contact: ${submission.data.contact || ""}
+`Upload ID: ${submission.uploadId || ""}
+Uploaded At: ${submission.uploadedAt || ""}
+Guest Name: ${submission.guestName || ""}
+Contact: ${submission.contact || ""}
 Message:
-${submission.data.message || ""}
+${submission.message || ""}
 `;
 
     zipEntries.push({
@@ -330,7 +326,7 @@ ${submission.data.message || ""}
     return json({ error: `No ${wantedCategory} found` }, 400, request);
   }
 
-  const zipBytes = await createZip(zipEntries);
+  const zipBytes = createZip(zipEntries);
   const datePart = new Date().toISOString().slice(0, 10);
   const filename = `wedding-${wantedCategory}-${datePart}.zip`;
 
@@ -343,7 +339,6 @@ ${submission.data.message || ""}
     }
   });
 }
-
 /* =========================
    TURNSTILE VERIFY
 ========================= */
@@ -425,4 +420,102 @@ function sanitizeFolderName(name) {
     .replace(/\s+/g, "_")
     .trim()
     .slice(0, 80) || "guest";
+}
+
+function createZip(entries) {
+  const encoder = new TextEncoder();
+  const localParts = [];
+  const centralParts = [];
+  let offset = 0;
+
+  for (const entry of entries) {
+    const nameBytes = encoder.encode(entry.name);
+    const data = entry.data;
+    const crc = crc32(data);
+
+    const localHeader = new Uint8Array(30);
+    const lv = new DataView(localHeader.buffer);
+
+    lv.setUint32(0, 0x04034b50, true);
+    lv.setUint16(4, 20, true);
+    lv.setUint16(8, 0, true);
+    lv.setUint32(14, crc, true);
+    lv.setUint32(18, data.length, true);
+    lv.setUint32(22, data.length, true);
+    lv.setUint16(26, nameBytes.length, true);
+
+    localParts.push(localHeader, nameBytes, data);
+
+    const centralHeader = new Uint8Array(46);
+    const cv = new DataView(centralHeader.buffer);
+
+    cv.setUint32(0, 0x02014b50, true);
+    cv.setUint16(4, 20, true);
+    cv.setUint16(6, 20, true);
+    cv.setUint32(16, crc, true);
+    cv.setUint32(20, data.length, true);
+    cv.setUint32(24, data.length, true);
+    cv.setUint16(28, nameBytes.length, true);
+    cv.setUint32(42, offset, true);
+
+    centralParts.push(centralHeader, nameBytes);
+
+    offset += localHeader.length + nameBytes.length + data.length;
+  }
+
+  const centralSize = centralParts.reduce((sum, part) => sum + part.length, 0);
+
+  const end = new Uint8Array(22);
+  const ev = new DataView(end.buffer);
+
+  ev.setUint32(0, 0x06054b50, true);
+  ev.setUint16(8, entries.length, true);
+  ev.setUint16(10, entries.length, true);
+  ev.setUint32(12, centralSize, true);
+  ev.setUint32(16, offset, true);
+
+  const total =
+    localParts.reduce((sum, part) => sum + part.length, 0) +
+    centralSize +
+    end.length;
+
+  const zip = new Uint8Array(total);
+  let pointer = 0;
+
+  for (const part of localParts) {
+    zip.set(part, pointer);
+    pointer += part.length;
+  }
+
+  for (const part of centralParts) {
+    zip.set(part, pointer);
+    pointer += part.length;
+  }
+
+  zip.set(end, pointer);
+  return zip;
+}
+
+const CRC_TABLE = (() => {
+  const table = new Uint32Array(256);
+
+  for (let n = 0; n < 256; n++) {
+    let c = n;
+    for (let k = 0; k < 8; k++) {
+      c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+    }
+    table[n] = c >>> 0;
+  }
+
+  return table;
+})();
+
+function crc32(bytes) {
+  let crc = 0 ^ -1;
+
+  for (let i = 0; i < bytes.length; i++) {
+    crc = (crc >>> 8) ^ CRC_TABLE[(crc ^ bytes[i]) & 0xff];
+  }
+
+  return (crc ^ -1) >>> 0;
 }
